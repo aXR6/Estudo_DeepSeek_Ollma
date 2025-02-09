@@ -75,5 +75,5 @@ python3 script_pentest.py
 O script foi testado e otimizado para rodar no **Debian 12**, garantindo compatibilidade com as ferramentas utilizadas. No entanto, ele pode ser adaptado para outras distribuições Linux com as devidas configurações.
 
 ## Autor
-Este script foi desenvolvido por **Seu Nome**, com última atualização em **08 de fevereiro de 2025**.
-
+Desenvolvido por **Thalles Canela**
+Última atualização: **08 de fevereiro de 2025**

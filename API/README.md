@@ -77,3 +77,7 @@ curl -X POST http://localhost:5000/analyze \
 - Utilize **variáveis de ambiente** para armazenar a API Key de forma segura.
 
 Este projeto é um ponto de partida para uma integração robusta com DeepSeek e pode ser expandido conforme as necessidades da aplicação.
+
+## Autor
+Desenvolvido por **Thalles Canela**
+Última atualização: **08 de fevereiro de 2025**
