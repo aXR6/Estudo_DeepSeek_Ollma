@@ -15,14 +15,13 @@ import logging
 import re
 import zlib
 import asyncio
+import httpx
+import databases
 from datetime import datetime, timedelta
 from typing import Optional
-
 from quart import Quart, request, jsonify, Response
 from quart_rate_limiter import RateLimiter, rate_limit
 from pydantic import BaseModel, ValidationError
-import httpx
-import databases
 
 # Importa Rich para saída elegante
 from rich.console import Console
