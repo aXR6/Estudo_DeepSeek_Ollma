@@ -68,8 +68,11 @@ python3 script_pentest.py
 ```
 O menu interativo permitirá escolher a melhor abordagem para o PenTest.
 
-## Como Executar o Projeto
+## Imagens:
+Imagem da API funcionando:
 ![API](https://i.postimg.cc/Hn95v59S/Captura-de-tela-de-2025-02-09-13-35-36.png)
+
+Imagem do SCAN funcionando:
 ![SCAN](https://i.postimg.cc/nhRKt4bg/Captura-de-tela-de-2025-02-09-13-29-10.png)
 
 ## Conclusão
