@@ -418,3 +418,32 @@ SystemExit: 1
  * Running on http://127.0.0.1:5000
  * Running on http://192.168.3.100:5000
 2025-02-09 18:41:50,410 [INFO] [33mPress CTRL+C to quit[0m
+2025-02-09 18:46:34,678 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.3.100:5000
+2025-02-09 18:46:34,678 [INFO] [33mPress CTRL+C to quit[0m
+2025-02-09 18:51:38,252 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.3.100:5000
+2025-02-09 18:51:38,252 [INFO] [33mPress CTRL+C to quit[0m
+2025-02-09 18:52:34,871 [INFO] 127.0.0.1 - - [09/Feb/2025 18:52:34] "POST /analyze HTTP/1.1" 200 -
+2025-02-09 18:54:02,982 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.3.100:5000
+2025-02-09 18:54:02,982 [INFO] [33mPress CTRL+C to quit[0m
+2025-02-09 18:56:59,920 [INFO] 127.0.0.1 - - [09/Feb/2025 18:56:59] "POST /analyze HTTP/1.1" 200 -
+2025-02-09 19:00:00,494 [ERROR] Falha no teste do Ollama: Command '['ollama', 'run', 'deepseek-r1:14b', 'Teste de conexão']' timed out after 30 seconds
+2025-02-09 19:05:01,551 [ERROR] Falha no teste do Ollama: Command '['ollama', 'run', 'deepseek-r1:14b', 'Teste de conexão']' timed out after 30 seconds
+2025-02-09 19:05:31,691 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.3.100:5000
+2025-02-09 19:05:31,691 [INFO] [33mPress CTRL+C to quit[0m
+2025-02-09 19:05:59,356 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.3.100:5000
+2025-02-09 19:05:59,356 [INFO] [33mPress CTRL+C to quit[0m
