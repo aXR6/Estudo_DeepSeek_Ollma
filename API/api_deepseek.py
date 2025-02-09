@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
 API Server para integração com DeepSeek via Ollama - Versão Melhorada
+
+Autor: Thalles Canela
+Data: 2025-02-02 (Atualizado: 2025-02-08)
 """
 
 import os

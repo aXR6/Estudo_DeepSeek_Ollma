@@ -16,7 +16,7 @@ Requisitos:
     - API do DeepSeek (via Ollama) rodando localmente.
     - Bibliotecas: requests (pip install requests) e rich (pip install rich).
 
-Autor: Seu Nome
+Autor: Thalles Canela
 Data: 2025-02-02 (Atualizado: 2025-02-08)
 """
 
