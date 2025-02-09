@@ -2,5 +2,5 @@
 *.xml
 *.txt
 *.db
-API/db
-API/logs
+./API/db
+./API/logs
