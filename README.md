@@ -73,7 +73,7 @@ Imagem da API funcionando:
 ![API](https://i.postimg.cc/Hn95v59S/Captura-de-tela-de-2025-02-09-13-35-36.png)
 
 Imagem do SCAN funcionando:
-![SCAN](https://i.postimg.cc/nhRKt4bg/Captura-de-tela-de-2025-02-09-13-29-10.png)
+![SCAN](https://i.postimg.cc/T34bsTnX/Captura-de-tela-de-2025-02-09-13-39-10.png)
 
 ## Conclusão
 Este projeto automatiza um processo essencial de segurança cibernética, unindo poderosas ferramentas de PenTest com a inteligência artificial da API DeepSeek. O resultado é uma análise precisa e aprofundada das vulnerabilidades detectadas, permitindo que equipes de segurança atuem de forma mais eficiente na mitigação de riscos.
