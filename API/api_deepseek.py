@@ -34,6 +34,17 @@ from rich.logging import RichHandler
 console = Console()
 
 # ------------------------------
+# Criação dos diretórios necessários
+# ------------------------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOG_FOLDER = os.path.join(BASE_DIR, "logs")
+DB_FOLDER = os.path.join(BASE_DIR, "db")
+DB_FILE = os.path.join(DB_FOLDER, "api_logs.db")
+
+os.makedirs(LOG_FOLDER, exist_ok=True)
+os.makedirs(DB_FOLDER, exist_ok=True)
+
+# ------------------------------
 # Configuração de Logging Unificado com Formatter Personalizado
 # ------------------------------
 
@@ -53,7 +64,7 @@ class CustomFormatter(logging.Formatter):
 
 console_handler = RichHandler()
 console_handler.setFormatter(CustomFormatter())
-file_handler = logging.FileHandler("logs/api_server.log")
+file_handler = logging.FileHandler(os.path.join(LOG_FOLDER, "api_server.log"))
 file_handler.setFormatter(CustomFormatter())
 
 logging.basicConfig(
@@ -64,26 +75,17 @@ logging.basicConfig(
 # ------------------------------
 # Configurações Gerais
 # ------------------------------
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-LOG_FOLDER = os.path.join(BASE_DIR, "logs")
-DB_FOLDER = os.path.join(BASE_DIR, "db")
-DB_FILE = os.path.join(DB_FOLDER, "api_logs.db")
 API_PORT = int(os.getenv("API_PORT", "5000"))
 MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", str(1024 * 1024 * 1024)))  # 1GB
-API_KEY = os.getenv("PENTEST_API_KEY", "sk_prod_1234567890abcdef")
+API_KEY = os.getenv("PENTEST_API_KEY", "sk_prod_1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
 OLLAMA_API_URL = os.getenv("OLLAMA_API_URL", "http://localhost:11434")
 OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "7200"))  # 2 horas em segundos
 MAX_WORKERS = int(os.getenv("MAX_WORKERS", "4"))
 APP_VERSION = "2.1.0"
 
-os.makedirs(LOG_FOLDER, exist_ok=True)
-os.makedirs(DB_FOLDER, exist_ok=True)
-
 # ------------------------------
 # Inicializa o aplicativo Quart (ASGI)
 # ------------------------------
-
 app = Quart(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
 
@@ -93,14 +95,12 @@ rate_limiter = RateLimiter(app, key_function=lambda: request.remote_addr)
 # ------------------------------
 # Configuração do banco de dados assíncrono com databases (SQLite)
 # ------------------------------
-
 DATABASE_URL = f"sqlite:///{DB_FILE}"
 database = databases.Database(DATABASE_URL)
 
 # ------------------------------
 # Modelo Pydantic para validação de entrada
 # ------------------------------
-
 class AnalysisRequest(BaseModel):
     scan_data: str
     context: str
@@ -109,7 +109,6 @@ class AnalysisRequest(BaseModel):
 # ------------------------------
 # Funções Utilitárias
 # ------------------------------
-
 def clean_analysis_result(text: str) -> str:
     cleaned = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
     cleaned = re.sub(r'\n\s*\n', '\n\n', cleaned)
@@ -209,16 +208,15 @@ def print_startup_banner(port: int, version: str, db_status: bool, ollama_status
 # ------------------------------
 # Global Error Handler para Requisições
 # ------------------------------
-
 @app.errorhandler(Exception)
 async def handle_unexpected_error(e: Exception) -> Response:
     logging.error(f"Erro inesperado: {str(e)}")
+    # Retorna uma mensagem padronizada e encerra a aplicação (se necessário)
     return jsonify({"error": "Erro inesperado ocorreu. A aplicação está sendo encerrada."}), 500
 
 # ------------------------------
 # Middleware After Request para Log Unificado
 # ------------------------------
-
 @app.after_request
 async def log_requests(response: Response) -> Response:
     timestamp = datetime.now().strftime("%H:%M:%S")
@@ -244,7 +242,6 @@ async def log_requests(response: Response) -> Response:
 # ------------------------------
 # Endpoints
 # ------------------------------
-
 @app.route("/analyze", methods=["POST"])
 @rate_limit(50, timedelta(minutes=1))
 async def analyze() -> Response:
@@ -315,7 +312,6 @@ async def health_check() -> Response:
 # ------------------------------
 # Startup e Shutdown
 # ------------------------------
-
 @app.before_serving
 async def startup() -> None:
     await database.connect()
@@ -339,7 +335,6 @@ async def shutdown() -> None:
 # ------------------------------
 # Inicialização do Servidor ASGI com Tratamento Global de Erros Críticos
 # ------------------------------
-
 if __name__ == "__main__":
     try:
         import hypercorn.asyncio
