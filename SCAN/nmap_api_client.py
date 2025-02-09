@@ -34,7 +34,9 @@ from rich.console import Console
 
 API_ENDPOINT = "http://localhost:5000/analyze"
 API_KEY = "sk_prod_1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
-CONTEXT_MESSAGE = (
+
+### Você pode escolher qual será contexto da análise: Proteção ou Exploração ###
+CONTEXT_MESSAGE_Protecao = (
     "Objetivo: Fornecer uma análise técnica, aprofundada e correlacionada dos resultados dos scans de PenTest, "
     "identificando, classificando e interpretando os riscos e vulnerabilidades detectados no alvo. "
     "Os resultados foram coletados por diversas ferramentas (Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon) e podem conter dados sobre "
@@ -50,6 +52,26 @@ CONTEXT_MESSAGE = (
     
     "Você está recebendo dados levantados pelos softwares: Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon."
 )
+
+CONTEXT_MESSAGE_Exploracao = (
+    "Objetivo: Fornecer uma análise técnica, aprofundada e orientada para a exploração das vulnerabilidades detectadas pelo SCAN, "
+    "identificando, classificando e interpretando os riscos e falhas de segurança encontrados no alvo, e sugerindo vetores de exploração e proof-of-concept quando aplicável. "
+    "Os dados foram coletados por diversas ferramentas (Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon) e podem incluir informações sobre "
+    "port scanning, detecção de serviços, enumeração de subdomínios, vulnerabilidades conhecidas, banners e informações DNS.\n\n"
+    
+    "Instruções:\n"
+    "1. Analise detalhadamente os resultados apresentados, organizando-os por ferramenta e destacando as informações críticas para a exploração das falhas.\n"
+    "2. Identifique e classifique as vulnerabilidades e riscos encontrados, determinando a gravidade de cada item (ex.: baixa, média, alta) e, sempre que possível, referenciando CVEs e evidências técnicas.\n"
+    "3. Para cada vulnerabilidade, forneça sugestões de vetores de exploração, descrevendo como um atacante poderia utilizar a falha para comprometer o alvo, e, se possível, inclua ideias de proof-of-concept.\n"
+    "4. Apresente recomendações técnicas específicas para a mitigação ou correção das vulnerabilidades, sugerindo controles e medidas corretivas adequadas.\n"
+    "5. Considere a possibilidade de falsos positivos, indicando métodos para sua validação.\n"
+    "6. A análise deve incluir uma avaliação do impacto, detalhando as consequências de uma exploração bem-sucedida para o ambiente.\n"
+    "7. Utilize terminologia técnica de PenTest e de segurança da informação, e apresente toda a análise em Português do Brasil (PT-BR).\n\n"
+    
+    "Você está recebendo dados levantados pelos softwares: Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon."
+)
+### Você pode escolher qual será contexto da análise: Proteção ou Exploração ###
+
 RESULTS_FILE = "results.json"
 NETWORK_DEVICES_FILE = "network_devices.txt"
 
@@ -309,7 +331,7 @@ def send_to_deepseek(scan_data):
     """
     payload = {
         "scan_data": scan_data,
-        "context": CONTEXT_MESSAGE
+        "context": CONTEXT_MESSAGE_Protecao
     }
     headers = {"X-API-Key": API_KEY}
     try:
