@@ -280,6 +280,9 @@ def send_to_deepseek(scan_data):
     """
     Envia os dados combinados para a API do DeepSeek com o contexto de Proteção.
     Retorna a resposta da API como dicionário.
+    
+    Melhoria solicitada:
+    - Após o envio, exibe o conteúdo (scan_data) que foi de fato enviado para a API.
     """
     payload = {
         "scan_data": scan_data,
@@ -291,6 +294,11 @@ def send_to_deepseek(scan_data):
         response = requests.post(API_ENDPOINT, json=payload, headers=headers, timeout=200000)
         if response.status_code == 200:
             console.print("[+] Dados enviados com sucesso.", style="bold green")
+            
+            # *** Exibir na tela o conteúdo que foi enviado para a API ***
+            console.print("\n=== Conteúdo Enviado para a API ===", style="bold cyan")
+            console.print(scan_data)  # Exibe tudo que foi enviado
+            
             analysis = response.json()
             display_analysis(analysis)
             return analysis
