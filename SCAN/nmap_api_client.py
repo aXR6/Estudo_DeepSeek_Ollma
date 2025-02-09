@@ -25,7 +25,6 @@ import subprocess
 import json
 import re
 import socket
-import subprocess
 from datetime import datetime
 import requests
 from rich.console import Console
@@ -70,7 +69,6 @@ CONTEXT_MESSAGE_Exploracao = (
     
     "Você está recebendo dados levantados pelos softwares: Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon."
 )
-### Você pode escolher qual será contexto da análise: Proteção ou Exploração ###
 
 RESULTS_FILE = "results.json"
 NETWORK_DEVICES_FILE = "network_devices.txt"
@@ -102,7 +100,7 @@ def normalize_target(target):
 def run_nmap_scan(target):
     """
     Executa diversos scans agressivos com Nmap para o alvo especificado,
-    utilizando um target normalizado (sem os prefixos: http, https, http://, https://, www).
+    utilizando um target normalizado (sem os prefixos).
     Retorna uma string com os resultados.
     """
     normalized_target = normalize_target(target)
@@ -133,43 +131,23 @@ def run_nmap_scan(target):
         combined += f"==== {key} ====\n{output}\n\n"
     return combined
 
-def run_nmap_scan_file(file_path):
-    """Executa scan Nmap para cada alvo listado em um arquivo."""
-    results = {}
-    if not os.path.exists(file_path):
-        console.print(f"[-] Arquivo '{file_path}' não encontrado.", style="bold red")
-        return results
-    with open(file_path, "r", encoding="utf-8") as f:
-        targets = [line.strip() for line in f if line.strip()]
-    for target in targets:
-        results[target] = run_nmap_scan(target)
-    return results
-
-def ping_scan(network_range):
-    """Executa um scan do tipo ping (nmap -sn) para descobrir dispositivos na rede."""
-    console.print(f"\n[+] Realizando ping scan na rede: {network_range}", style="bold green")
+def get_server_ip(target):
+    """
+    Tenta resolver o endereço IP para o domínio/host fornecido.
+    Se o target já for um IP, apenas o retorna.
+    """
+    if is_ip(target):
+        return target
     try:
-        cmd = ["nmap", "-sn", network_range]
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
-        output = proc.stdout
-        ips = re.findall(r'Nmap scan report for ([\d\.]+)', output)
-        if ips:
-            with open(NETWORK_DEVICES_FILE, "w", encoding="utf-8") as f:
-                for ip in ips:
-                    f.write(ip + "\n")
-            console.print(f"[+] IPs encontrados: {', '.join(ips)}", style="bold green")
-        else:
-            console.print("[-] Nenhum dispositivo encontrado.", style="bold red")
-        return ips
-    except subprocess.CalledProcessError as e:
-        console.print(f"[-] Erro no ping scan: {e.stderr}", style="bold red")
-        return []
+        ip_address = socket.gethostbyname(target)
+        log_message(f"Endereço IP resolvido para {target}: {ip_address}")
+        return ip_address
+    except Exception as e:
+        console.print(f"[-] Erro ao resolver IP para {target}: {e}", style="bold red")
+        return None
 
 def run_nikto_scan(target):
-    """
-    Executa o Nikto com os parâmetros: -host http://{target} -Tuning 9.
-    Retorna a saída.
-    """
+    """Executa Nikto (host + tuning 9) e retorna a saída."""
     log_message(f"Iniciando Nikto para {target}")
     try:
         cmd = ["nikto", "-host", f"{target}", "-Tuning", "9"]
@@ -181,11 +159,7 @@ def run_nikto_scan(target):
         return error
 
 def run_amass_enum(target):
-    """
-    Executa o Amass no modo ativo com os parâmetros:
-      -active -d <alvo> -src -ip
-    Utiliza o domínio normalizado (removendo http://, https://, www. etc.).
-    """
+    """Executa o Amass no modo ativo e retorna a saída."""
     normalized_target = normalize_target(target)
     log_message(f"Iniciando Amass para {normalized_target}")
     try:
@@ -198,36 +172,21 @@ def run_amass_enum(target):
         return error
 
 def run_theharvester(target):
-    """
-    Executa o theHarvester conforme a documentação oficial, utilizando os seguintes parâmetros:
-      -d DOMAIN          : domínio alvo (normalizado)
-      -l LIMIT           : limite de resultados (500)
-      -S START           : iniciar com o resultado número 0
-      -p                 : utilizar proxies (caso estejam configurados no arquivo proxies.yaml)
-      -v                 : modo verbose
-      -e DNS_SERVER      : servidor DNS para lookup (ex.: 8.8.8.8)
-      -n                 : habilitar DNS lookup
-      -c                 : realizar DNS brute force
-      -f FILENAME        : arquivo para salvar os resultados (gerado dinamicamente)
-      -b SOURCE          : fontes a serem consultadas (ex.: google,bing,yahoo)
-      
-    Retorna a saída do comando.
-    """
+    """Executa theHarvester e retorna a saída."""
     normalized_target = normalize_target(target)
     log_message(f"Iniciando theHarvester para {normalized_target}")
-    # Gera um nome de arquivo de saída baseado no alvo, substituindo os pontos por underlines
-    output_file = f"output_{normalized_target.replace('.', '_')}.html"
+    output_file = f"output_{normalized_target.replace('.', '_')}.html"  # gera nome de arquivo dinâmico
     try:
         cmd = [
             "python3", "/opt/theHarvester/theHarvester.py",
             "-d", normalized_target,
             "-l", "500",
             "-S", "0",
-            "-p",       # Habilita uso de proxies, se configurados
-            "-v",       # Ativa verbose
-            "-e", "8.8.8.8",  # Utiliza o DNS 8.8.8.8 para resolução
-            "-n",       # Ativa DNS lookup
-            "-c",       # Realiza DNS brute force
+            "-p",       # utilizar proxies se configurados
+            "-v",       # verbose
+            "-e", "8.8.8.8",  # servidor DNS
+            "-n",       # DNS lookup
+            "-c",       # DNS brute force
             "-f", output_file,
             "-b", "duckduckgo"
         ]
@@ -241,16 +200,7 @@ def run_theharvester(target):
         return error
 
 def run_sublist3r(target):
-    """
-    Executa o Sublist3r conforme a documentação oficial:
-      usage: sublist3r.py [-h] -d DOMAIN [-b [BRUTEFORCE]] [-p PORTS]
-                           [-v [VERBOSE]] [-t THREADS] [-e ENGINES]
-                           [-o OUTPUT] [-n]
-    
-    Utiliza o domínio normalizado.
-    """
-    from rich.console import Console
-    console = Console()
+    """Executa o Sublist3r e retorna a saída."""
     normalized_target = normalize_target(target)
     console.print(f"[bold green]Iniciando Sublist3r para {normalized_target}[/bold green]")
     try:
@@ -269,10 +219,7 @@ def run_sublist3r(target):
         return error
 
 def run_dnsrecon(target):
-    """
-    Executa o dnsrecon com os parâmetros: -d {target} -a.
-    Retorna a saída.
-    """
+    """Executa dnsrecon (modo -a) e retorna a saída."""
     log_message(f"Iniciando dnsrecon para {target}")
     try:
         cmd = ["dnsrecon", "-d", target, "-a"]
@@ -287,10 +234,10 @@ def run_masscan():
     """
     Menu exclusivo para execução do masscan.
     Solicita do usuário:
-      - Range de rede (ex.: 192.168.1.0/24)
-      - Faixa de portas (ex.: 0-65535)
-      - Taxa de envio (ex.: 10000)
-    Executa o masscan com os parâmetros e retorna a saída.
+      - Range de rede
+      - Faixa de portas
+      - Taxa de envio
+    Retorna a saída.
     """
     console.print("\n==== Masscan Scan ====", style="bold blue")
     network_range = input("Digite o range de rede (ex.: 192.168.1.0/24): ").strip()
@@ -309,24 +256,29 @@ def run_masscan():
         log_message(error)
         return error
 
-def get_server_ip(target):
-    """
-    Tenta resolver o endereço IP para o domínio/host fornecido.
-    Se o target já for um IP, retorna-o.
-    """
-    if is_ip(target):
-        return target
+def ping_scan(network_range):
+    """Executa um scan de ping (nmap -sn) para descobrir dispositivos na rede."""
+    console.print(f"\n[+] Realizando ping scan na rede: {network_range}", style="bold green")
     try:
-        ip_address = socket.gethostbyname(target)
-        log_message(f"Endereço IP resolvido para {target}: {ip_address}")
-        return ip_address
-    except Exception as e:
-        console.print(f"[-] Erro ao resolver IP para {target}: {e}", style="bold red")
-        return None
+        cmd = ["nmap", "-sn", network_range]
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+        output = proc.stdout
+        ips = re.findall(r'Nmap scan report for ([\d\.]+)', output)
+        if ips:
+            with open(NETWORK_DEVICES_FILE, "w", encoding="utf-8") as f:
+                for ip in ips:
+                    f.write(ip + "\n")
+            console.print(f"[+] IPs encontrados: {', '.join(ips)}", style="bold green")
+        else:
+            console.print("[-] Nenhum dispositivo encontrado.", style="bold red")
+        return ips
+    except subprocess.CalledProcessError as e:
+        console.print(f"[-] Erro no ping scan: {e.stderr}", style="bold red")
+        return []
 
 def send_to_deepseek(scan_data):
     """
-    Envia os dados combinados para a API do DeepSeek com o contexto.
+    Envia os dados combinados para a API do DeepSeek com o contexto de Proteção.
     Retorna a resposta da API como dicionário.
     """
     payload = {
@@ -359,7 +311,7 @@ def display_analysis(analysis):
     console.print(f"\n[bold]Tempo de Processamento:[/bold] {processing_time:.2f} segundos", style="bold green")
 
 def save_result(result_data):
-    """Salva os resultados em um arquivo JSON."""
+    """Salva os resultados em um arquivo JSON (results.json), mantendo histórico."""
     data_to_save = {"timestamp": datetime.now().isoformat(), "result": result_data}
     results_list = []
     if os.path.exists(RESULTS_FILE):
@@ -390,7 +342,7 @@ def view_results():
         console.print(f"[-] Erro ao ler resultados: {e}", style="bold red")
 
 def export_results_to_html():
-    """Exporta os resultados salvos para um arquivo HTML."""
+    """Exporta os resultados salvos para um arquivo HTML (results.html)."""
     if not os.path.exists(RESULTS_FILE):
         console.print("[-] Nenhum resultado salvo encontrado para exportação.", style="bold red")
         return
@@ -410,6 +362,61 @@ def export_results_to_html():
     except Exception as e:
         console.print(f"[-] Erro ao exportar resultados para HTML: {e}", style="bold red")
 
+# ==================== FUNÇÃO PRINCIPAL PARA RODAR TODOS OS SCANS ====================
+
+def run_all_scans(target):
+    """
+    Executa todas as ferramentas (Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon) para o alvo.
+    Retorna um dicionário com as saídas individuais e uma chave 'combined_output' com todos os resultados combinados.
+    """
+    # 1) Nmap principal
+    nmap_output = run_nmap_scan(target)
+    
+    # 2) Caso seja um domínio, resolver IP e executar Nmap adicional
+    ip_address = get_server_ip(target)
+    if ip_address and ip_address != target:
+        nmap_ip_output = run_nmap_scan(ip_address)
+    else:
+        nmap_ip_output = "Scan adicional não realizado (alvo já é IP ou resolução falhou)."
+    
+    # 3) Nikto
+    nikto_output = run_nikto_scan(target)
+    
+    # 4) Amass (apenas se não for IP)
+    amass_output = run_amass_enum(target) if not is_ip(target) else "Amass não executado para IP."
+    
+    # 5) theHarvester
+    theharvester_output = run_theharvester(target)
+    
+    # 6) Sublist3r
+    sublist3r_output = run_sublist3r(target)
+    
+    # 7) dnsrecon
+    dnsrecon_output = run_dnsrecon(target)
+    
+    # Combina tudo em um único texto
+    combined_output = (
+        f"=== RESULTADOS NMAP para {target} ===\n{nmap_output}\n"
+        f"=== RESULTADOS NMAP (IP resolvido: {ip_address if ip_address else 'N/A'}) ===\n{nmap_ip_output}\n"
+        f"=== RESULTADOS NIKTO para {target} ===\n{nikto_output}\n"
+        f"=== RESULTADOS AMASS para {target} ===\n{amass_output}\n"
+        f"=== RESULTADOS theHarvester para {target} ===\n{theharvester_output}\n"
+        f"=== RESULTADOS sublist3r para {target} ===\n{sublist3r_output}\n"
+        f"=== RESULTADOS dnsrecon para {target} ===\n{dnsrecon_output}\n"
+    )
+    
+    return {
+        "target": target,
+        "nmap_output": nmap_output,
+        "nmap_ip_output": nmap_ip_output,
+        "nikto_output": nikto_output,
+        "amass_output": amass_output,
+        "theharvester_output": theharvester_output,
+        "sublist3r_output": sublist3r_output,
+        "dnsrecon_output": dnsrecon_output,
+        "combined_output": combined_output
+    }
+
 # ==================== MENU PRINCIPAL ====================
 
 def main_menu():
@@ -426,95 +433,52 @@ def main_menu():
         
         if choice == "1":
             target = input("Digite o IP ou domínio para escanear: ").strip()
-            # Scan Nmap principal
-            nmap_output = run_nmap_scan(target)
-            console.print("\n=== Resultado do Nmap ===", style="bold blue")
-            console.print(nmap_output)
+            # Executa todos os scans para o alvo
+            scan_results = run_all_scans(target)
             
-            # Resolução do domínio e scan adicional (se aplicável)
-            ip_address = get_server_ip(target)
-            if ip_address and ip_address != target:
-                log_message(f"Executando scan adicional para o IP resolvido: {ip_address}")
-                nmap_ip_output = run_nmap_scan(ip_address)
-                console.print("\n=== Resultado do Nmap (IP resolvido) ===", style="bold blue")
-                console.print(nmap_ip_output)
-            else:
-                nmap_ip_output = "Scan adicional não realizado (alvo já é IP ou resolução falhou)."
-            
-            # Execução das demais ferramentas
-            nikto_output = run_nikto_scan(target)
-            console.print("\n=== Resultado do Nikto ===", style="bold blue")
-            console.print(nikto_output)
-            
-            amass_output = run_amass_enum(target) if not is_ip(target) else "Amass não executado para IP."
-            console.print("\n=== Resultado do Amass ===", style="bold blue")
-            console.print(amass_output)
-            
-            theharvester_output = run_theharvester(target)
-            console.print("\n=== Resultado do theHarvester ===", style="bold blue")
-            console.print(theharvester_output)
-            
-            sublist3r_output = run_sublist3r(target)
-            console.print("\n=== Resultado do sublist3r ===", style="bold blue")
-            console.print(sublist3r_output)
-            
-            dnsrecon_output = run_dnsrecon(target)
-            console.print("\n=== Resultado do dnsrecon ===", style="bold blue")
-            console.print(dnsrecon_output)
-            
-            # Combina todos os resultados
-            combined_analysis = (
-                f"=== RESULTADOS NMAP para {target} ===\n{nmap_output}\n"
-                f"=== RESULTADOS NMAP (IP resolvido: {ip_address if ip_address else 'N/A'}) ===\n{nmap_ip_output}\n"
-                f"=== RESULTADOS NIKTO para {target} ===\n{nikto_output}\n"
-                f"=== RESULTADOS AMASS para {target} ===\n{amass_output}\n"
-                f"=== RESULTADOS theHarvester para {target} ===\n{theharvester_output}\n"
-                f"=== RESULTADOS sublist3r para {target} ===\n{sublist3r_output}\n"
-                f"=== RESULTADOS dnsrecon para {target} ===\n{dnsrecon_output}\n"
-            )
-            
-            # Envia a análise combinada para a API do DeepSeek
-            analysis = send_to_deepseek(combined_analysis)
+            # Envia resultados combinados para API
+            analysis = send_to_deepseek(scan_results["combined_output"])
             if analysis:
                 console.print("\n=== Análise do DeepSeek (resultados combinados) ===", style="bold blue")
                 console.print(analysis)
             else:
                 console.print("[-] A análise combinada não foi obtida.", style="bold red")
-            # Salva os resultados
-            save_result({
-                "target": target,
-                "nmap_output": nmap_output,
-                "nmap_ip_output": nmap_ip_output,
-                "nikto_output": nikto_output,
-                "amass_output": amass_output,
-                "theharvester_output": theharvester_output,
-                "sublist3r_output": sublist3r_output,
-                "dnsrecon_output": dnsrecon_output,
-                "deepseek_analysis": analysis
-            })
+            
+            # Salva no JSON local
+            to_save = scan_results.copy()
+            to_save["deepseek_analysis"] = analysis
+            save_result(to_save)
         
         elif choice == "2":
             file_path = input("Digite o caminho do arquivo com a lista de IPs/Domínios: ").strip()
-            results = run_nmap_scan_file(file_path)
-            if results:
-                for target, output in results.items():
-                    console.print(f"\n=== Resultado para {target} ===", style="bold blue")
-                    console.print(output)
-                    confirm = input(f"Deseja enviar o resultado do alvo {target} para análise do DeepSeek? (s/n): ").strip().lower()
-                    if confirm == 's':
-                        analysis = send_to_deepseek(output)
-                        if analysis:
-                            console.print("\n=== Análise do DeepSeek ===", style="bold blue")
-                            console.print(analysis)
-                            save_result({
-                                "target": target,
-                                "nmap_output": output,
-                                "deepseek_analysis": analysis
-                            })
-                        else:
-                            console.print(f"[-] A análise não foi obtida para {target}.", style="bold red")
+            if not os.path.exists(file_path):
+                console.print(f"[-] Arquivo '{file_path}' não encontrado.", style="bold red")
+                continue
+            
+            with open(file_path, "r", encoding="utf-8") as f:
+                targets = [line.strip() for line in f if line.strip()]
+            
+            for t in targets:
+                console.print(f"\n=== Iniciando scans para: {t} ===", style="bold blue")
+                scan_results = run_all_scans(t)
+                
+                # Mostra parcialmente no console (opcional)
+                console.print(scan_results["combined_output"][:500] + "... [exibindo apenas primeiros 500 caracteres]", style="bold yellow")
+                
+                confirm = input(f"Deseja enviar o resultado do alvo {t} para análise do DeepSeek? (s/n): ").strip().lower()
+                if confirm == 's':
+                    analysis = send_to_deepseek(scan_results["combined_output"])
+                    if analysis:
+                        console.print("\n=== Análise do DeepSeek ===", style="bold blue")
+                        console.print(analysis)
+                        # Salva no JSON
+                        to_save = scan_results.copy()
+                        to_save["deepseek_analysis"] = analysis
+                        save_result(to_save)
                     else:
-                        console.print(f"[*] Resultado para {target} não enviado para análise.", style="bold yellow")
+                        console.print(f"[-] A análise não foi obtida para {t}.", style="bold red")
+                else:
+                    console.print(f"[*] Resultado para {t} não enviado para análise.", style="bold yellow")
         
         elif choice == "3":
             network_range = input("Digite o range da rede (ex.: 192.168.1.0/24): ").strip()
@@ -534,11 +498,11 @@ def main_menu():
             break
         
         elif choice == "7":
-            # Menu exclusivo para o Masscan
             run_masscan()
         
         else:
             console.print("Opção inválida. Tente novamente.", style="bold red")
+
 
 if __name__ == "__main__":
     main_menu()
