@@ -447,3 +447,4 @@ SystemExit: 1
  * Running on http://127.0.0.1:5000
  * Running on http://192.168.3.100:5000
 2025-02-09 19:05:59,356 [INFO] [33mPress CTRL+C to quit[0m
+2025-02-09 19:08:54,309 [INFO] 127.0.0.1 - - [09/Feb/2025 19:08:54] "POST /analyze HTTP/1.1" 200 -
