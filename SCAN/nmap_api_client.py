@@ -3,7 +3,7 @@
 Script de PenTest que consome a API do DeepSeek via Ollama.
 
 Funcionalidades:
-    - Escaneamento de um único IP/Domínio utilizando Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon.
+    - Escaneamento de um único IP/Domínio utilizando Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon e SSLyze.
     - Todos os scanners (exceto masscan) utilizam a mesma entrada (alvo) e são executados sequencialmente.
     - Cada ferramenta é executada e seu resultado é enviado individualmente para a API do DeepSeek;
       a próxima ferramenta só é acionada após o recebimento pela API da análise anterior.
@@ -15,7 +15,7 @@ Funcionalidades:
 
 Requisitos:
     - Python 3.7+
-    - Ferramentas instaladas e acessíveis via linha de comando: Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon e masscan.
+    - Ferramentas instaladas e acessíveis via linha de comando: Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon, masscan e SSLyze.
     - API do DeepSeek (via Ollama) rodando localmente.
     - Bibliotecas: requests (pip install requests) e rich (pip install rich).
     - Biblioteca para banco de dados SQLite (nativa no Python) ou outro DB à sua escolha.
@@ -43,7 +43,7 @@ API_KEY = "sk_prod_1234567890abcdef1234567890abcdef1234567890abcdef1234567890abc
 CONTEXT_MESSAGE_Protecao = (
     "Objetivo: Fornecer uma análise técnica, aprofundada e correlacionada dos resultados dos scans de PenTest, "
     "identificando, classificando e interpretando os riscos e vulnerabilidades detectados no alvo. "
-    "Os resultados foram coletados por diversas ferramentas (Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon) e podem conter dados sobre "
+    "Os resultados foram coletados por diversas ferramentas (Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon e SSLyze) e podem conter dados sobre "
     "port scanning, detecção de serviços, enumeração de subdomínios, vulnerabilidades conhecidas e informações DNS. \n\n"
     
     "Instruções:\n"
@@ -54,15 +54,15 @@ CONTEXT_MESSAGE_Protecao = (
     "5. A análise deve conter uma avaliação de impacto, detalhando como as vulnerabilidades podem ser exploradas e afetar o ambiente.\n"
     "6. Utilize terminologia técnica de PenTest e de segurança da informação. \n\n"
     
-    "Você está recebendo dados levantados pelos softwares: Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon."
-    "Observação importante: Apresente toda a sua análise em Português do Brasil (PT-BR)."
+    "Você está recebendo dados levantados pelos softwares: Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon e SSLyze. "
+    "Observação importante: Apresente toda a sua análise em Português do Brasil (PT-BR). "
     "Observação importante: Resultados sempre em Português do Brasil (PT-BR)."
 )
 
 CONTEXT_MESSAGE_Exploracao = (
     "Objetivo: Fornecer uma análise técnica, aprofundada e orientada para a exploração das vulnerabilidades detectadas pelo SCAN, "
     "identificando, classificando e interpretando os riscos e falhas de segurança encontrados no alvo, e sugerindo vetores de exploração e proof-of-concept quando aplicável. "
-    "Os dados foram coletados por diversas ferramentas (Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon) e podem incluir informações sobre "
+    "Os dados foram coletados por diversas ferramentas (Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon e SSLyze) e podem incluir informações sobre "
     "port scanning, detecção de serviços, enumeração de subdomínios, vulnerabilidades conhecidas, banners e informações DNS.\n\n"
     
     "Instruções:\n"
@@ -74,8 +74,8 @@ CONTEXT_MESSAGE_Exploracao = (
     "6. A análise deve incluir uma avaliação do impacto, detalhando as consequências de uma exploração bem-sucedida para o ambiente.\n"
     "7. Utilize terminologia técnica de PenTest e de segurança da informação.\n\n"
     
-    "Você está recebendo dados levantados pelos softwares: Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon."
-    "Observação importante: Apresente toda a sua análise em Português do Brasil (PT-BR)."
+    "Você está recebendo dados levantados pelos softwares: Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon e SSLyze. "
+    "Observação importante: Apresente toda a sua análise em Português do Brasil (PT-BR). "
     "Observação importante: Resultados sempre em Português do Brasil (PT-BR)."
 )
 
@@ -325,6 +325,56 @@ def ping_scan(network_range):
         console.print(f"[-] Erro no ping scan: {e.stderr}", style="bold red")
         return []
 
+def run_sslyze_scan(target):
+    """
+    Executa uma varredura agressiva com SSLyze para o alvo especificado.
+    - Normaliza o target e, se não houver porta, adiciona ":443" como padrão.
+    - Utiliza diversas flags para testar vulnerabilidades e configurações TLS de forma agressiva.
+    Retorna a saída do comando.
+    
+    Comando utilizado:
+        sslyze --heartbleed --fallback --certinfo --tlsv1 --tlsv1_1 --tlsv1_2 --tlsv1_3 --sslv3 --sslv2
+                --openssl_ccs --reneg --elliptic_curves --compression --early_data --resum --resum_attempts 100
+                --robot --mozilla_config modern target:443
+    """
+    normalized_target = normalize_target(target)
+    # Se o target não incluir a porta, adiciona ":443"
+    if ":" not in normalized_target:
+        normalized_target = f"{normalized_target}:443"
+    log_message(f"Iniciando scan SSLyze para {normalized_target}")
+    cmd = [
+        "sslyze",
+        "--heartbleed",
+        "--fallback",
+        "--certinfo",
+        "--tlsv1",
+        "--tlsv1_1",
+        "--tlsv1_2",
+        "--tlsv1_3",
+        "--sslv3",
+        "--sslv2",
+        "--openssl_ccs",
+        "--reneg",
+        "--elliptic_curves",
+        "--compression",
+        "--early_data",
+        "--resum",
+        "--resum_attempts", "100",
+        "--robot",
+        "--mozilla_config", "modern",
+        normalized_target
+    ]
+    log_message(f"Executando SSLyze com o comando: {' '.join(cmd)}")
+    try:
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+        output = proc.stdout
+        log_message("Scan SSLyze concluído.")
+        return output
+    except subprocess.CalledProcessError as e:
+        error = f"Erro no SSLyze: {e.stderr}"
+        log_message(error)
+        return error
+
 # ==================== FUNÇÃO DE ENVIO PARA A API ====================
 def send_to_deepseek(scan_data):
     """
@@ -431,7 +481,13 @@ def run_scans_sequential(target):
     tool_results["dnsrecon_output"] = dnsrecon_output
     tool_results["dnsrecon_analysis"] = send_to_deepseek(dnsrecon_output)
     
-    # Opcional: Gerar um campo combinado se necessário para salvar no DB
+    # 8) SSLyze (novo scanner agressivo)
+    console.print("\n=== Iniciando scan SSLyze ===", style="bold blue")
+    sslyze_output = run_sslyze_scan(target)
+    tool_results["sslyze_output"] = sslyze_output
+    tool_results["sslyze_analysis"] = send_to_deepseek(sslyze_output)
+    
+    # Gera um campo combinado se necessário para salvar no DB
     combined_output = (
         f"=== RESULTADOS NMAP ===\n{tool_results.get('nmap_output', '')}\n\n"
         f"=== RESULTADOS NMAP (IP resolvido) ===\n{tool_results.get('nmap_ip_output', '')}\n\n"
@@ -439,7 +495,8 @@ def run_scans_sequential(target):
         f"=== RESULTADOS AMASS ===\n{tool_results.get('amass_output', '')}\n\n"
         f"=== RESULTADOS theHarvester ===\n{tool_results.get('theharvester_output', '')}\n\n"
         f"=== RESULTADOS Sublist3r ===\n{tool_results.get('sublist3r_output', '')}\n\n"
-        f"=== RESULTADOS dnsrecon ===\n{tool_results.get('dnsrecon_output', '')}\n"
+        f"=== RESULTADOS dnsrecon ===\n{tool_results.get('dnsrecon_output', '')}\n\n"
+        f"=== RESULTADOS SSLyze ===\n{tool_results.get('sslyze_output', '')}\n"
     )
     tool_results["combined_output"] = combined_output
     
@@ -451,7 +508,7 @@ def display_sequential_results(tool_results):
     Exibe no console os resultados de cada ferramenta e suas análises individuais.
     """
     console.print("\n=== RESULTADOS DOS SCANS SEQUENCIAIS ===", style="bold magenta")
-    for tool in ["nmap", "nmap_ip", "nikto", "amass", "theharvester", "sublist3r", "dnsrecon"]:
+    for tool in ["nmap", "nmap_ip", "nikto", "amass", "theharvester", "sublist3r", "dnsrecon", "sslyze"]:
         output = tool_results.get(f"{tool}_output", "")
         analysis = tool_results.get(f"{tool}_analysis", {})
         console.print(f"\n----- {tool.upper()} -----", style="bold blue")
@@ -494,12 +551,12 @@ def save_result(result_data):
         target = result_data.get("target", "N/A")
         combined_output = result_data.get("combined_output", "N/A")
         
-        # A análise pode vir como dicionário. Convertemos para JSON, se for o caso.
-        deepseek_analysis = result_data.get("nmap_analysis")  # Exemplo: usar a análise do primeiro scan
+        # Exemplo: usa a análise do primeiro scanner (Nmap) para salvar no DB
+        deepseek_analysis = result_data.get("nmap_analysis")
         if isinstance(deepseek_analysis, dict):
             analysis_str = json.dumps(deepseek_analysis, ensure_ascii=False, indent=2)
         else:
-            analysis_str = str(deepseek_analysis)  # caso seja None ou string
+            analysis_str = str(deepseek_analysis)
         
         save_to_database(timestamp, target, combined_output, analysis_str)
         console.print("[+] Resultados também gravados no banco de dados (scan_results.db).", style="bold green")
@@ -548,7 +605,7 @@ def main_menu():
 
     while True:
         console.print("\n==== Menu de PenTest ====", style="bold blue")
-        console.print("1. Escanear um único IP/Domínio (executa Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon de forma sequencial)")
+        console.print("1. Escanear um único IP/Domínio (executa Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon e SSLyze de forma sequencial)")
         console.print("2. Escanear uma lista de IPs/Domínios (arquivo)")
         console.print("3. Descoberta de dispositivos na rede (ping scan)")
         console.print("4. Visualizar resultados salvos")
@@ -608,7 +665,6 @@ def main_menu():
         
         else:
             console.print("Opção inválida. Tente novamente.", style="bold red")
-
 
 if __name__ == "__main__":
     main_menu()
