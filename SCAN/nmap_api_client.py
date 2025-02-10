@@ -50,9 +50,11 @@ CONTEXT_MESSAGE_Protecao = (
     "3. Forneça recomendações técnicas específicas para a mitigação ou correção de cada vulnerabilidade, incluindo sugestões de controles e medidas corretivas.\n"
     "4. Considere possíveis falsos positivos e indique sugestões para sua validação, se aplicável.\n"
     "5. A análise deve conter uma avaliação de impacto, detalhando como as vulnerabilidades podem ser exploradas e afetar o ambiente.\n"
-    "6. Utilize terminologia técnica de PenTest e de segurança da informação, e apresente toda a análise em Português do Brasil (PT-BR). Resultados sempre em Português do Brasil (PT-BR). \n\n"
+    "6. Utilize terminologia técnica de PenTest e de segurança da informação. \n\n"
     
     "Você está recebendo dados levantados pelos softwares: Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon."
+    "Observação importante: Apresente toda a sua análise em Português do Brasil (PT-BR)."
+    "Observação importante: Resultados sempre em Português do Brasil (PT-BR)."
 )
 
 CONTEXT_MESSAGE_Exploracao = (
@@ -68,9 +70,11 @@ CONTEXT_MESSAGE_Exploracao = (
     "4. Apresente recomendações técnicas específicas para a mitigação ou correção das vulnerabilidades, sugerindo controles e medidas corretivas adequadas.\n"
     "5. Considere a possibilidade de falsos positivos, indicando métodos para sua validação.\n"
     "6. A análise deve incluir uma avaliação do impacto, detalhando as consequências de uma exploração bem-sucedida para o ambiente.\n"
-    "7. Utilize terminologia técnica de PenTest e de segurança da informação, e apresente toda a análise em Português do Brasil (PT-BR).\n\n"
+    "7. Utilize terminologia técnica de PenTest e de segurança da informação.\n\n"
     
     "Você está recebendo dados levantados pelos softwares: Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon."
+    "Observação importante: Apresente toda a sua análise em Português do Brasil (PT-BR)."
+    "Observação importante: Resultados sempre em Português do Brasil (PT-BR)."
 )
 
 RESULTS_FILE = "results.json"
