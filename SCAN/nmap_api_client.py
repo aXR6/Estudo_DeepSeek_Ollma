@@ -4,12 +4,14 @@ Script de PenTest que consome a API do DeepSeek via Ollama.
 
 Funcionalidades:
     - Escaneamento de um único IP/Domínio utilizando Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon.
-    - Todos os scanners (exceto masscan) utilizam a mesma entrada (alvo) e são executados juntos.
+    - Todos os scanners (exceto masscan) utilizam a mesma entrada (alvo) e são executados sequencialmente.
+    - Cada ferramenta é executada e seu resultado é enviado individualmente para a API do DeepSeek;
+      a próxima ferramenta só é acionada após o recebimento pela API da análise anterior.
     - Menu separado para executar o masscan, que solicita os parâmetros necessários.
     - Integração dos resultados de todas as ferramentas em uma única saída, enviada para a API do DeepSeek.
     - Visualização e exportação dos resultados (JSON e HTML).
     - Salvamento automático dos IPs encontrados em network_devices.txt.
-    - **Gravação dos resultados no banco de dados SQLite (scan_results.db).**
+    - Gravação dos resultados no banco de dados SQLite (scan_results.db).
 
 Requisitos:
     - Python 3.7+
@@ -323,13 +325,13 @@ def ping_scan(network_range):
         console.print(f"[-] Erro no ping scan: {e.stderr}", style="bold red")
         return []
 
+# ==================== FUNÇÃO DE ENVIO PARA A API ====================
 def send_to_deepseek(scan_data):
     """
-    Envia os dados combinados para a API do DeepSeek com o contexto de Proteção.
+    Envia os dados para a API do DeepSeek com o contexto de Proteção.
     Retorna a resposta da API como dicionário.
     
-    Melhoria solicitada:
-    - Após o envio, exibe o conteúdo (scan_data) que foi de fato enviado para a API.
+    Exibe o conteúdo que foi de fato enviado para a API.
     """
     payload = {
         "scan_data": scan_data,
@@ -342,9 +344,9 @@ def send_to_deepseek(scan_data):
         if response.status_code == 200:
             console.print("[+] Dados enviados com sucesso.", style="bold green")
             
-            # *** Exibir na tela o conteúdo que foi enviado para a API ***
+            # Exibe na tela o conteúdo enviado para a API
             console.print("\n=== Conteúdo Enviado para a API ===", style="bold cyan")
-            console.print(scan_data)  # Exibe tudo que foi enviado
+            console.print(scan_data)
             
             analysis = response.json()
             display_analysis(analysis)
@@ -365,6 +367,103 @@ def display_analysis(analysis):
     console.print(analysis_text, style="white")
     console.print(f"\n[bold]Tempo de Processamento:[/bold] {processing_time:.2f} segundos", style="bold green")
 
+# ==================== FUNÇÃO NOVA: SCANS SEQUENCIAIS ====================
+def run_scans_sequential(target):
+    """
+    Executa os scans de cada ferramenta de forma sequencial.
+    Para cada ferramenta:
+      - Executa o scan.
+      - Envia o resultado individual para a API do DeepSeek.
+      - Aguarda a resposta da API antes de prosseguir para a próxima ferramenta.
+    
+    Retorna um dicionário com os outputs e as análises individuais.
+    """
+    tool_results = {"target": target}
+    
+    # 1) Nmap
+    console.print("\n=== Iniciando scan Nmap ===", style="bold blue")
+    nmap_output = run_nmap_scan(target)
+    tool_results["nmap_output"] = nmap_output
+    tool_results["nmap_analysis"] = send_to_deepseek(nmap_output)
+    
+    # 2) Nmap adicional para IP (se aplicável)
+    ip_address = get_server_ip(target)
+    if ip_address and ip_address != target:
+        console.print("\n=== Iniciando scan Nmap para IP resolvido ===", style="bold blue")
+        nmap_ip_output = run_nmap_scan(ip_address)
+        tool_results["nmap_ip_output"] = nmap_ip_output
+        tool_results["nmap_ip_analysis"] = send_to_deepseek(nmap_ip_output)
+    else:
+        tool_results["nmap_ip_output"] = "Scan adicional não realizado (alvo já é IP ou resolução falhou)."
+        tool_results["nmap_ip_analysis"] = None
+    
+    # 3) Nikto
+    console.print("\n=== Iniciando scan Nikto ===", style="bold blue")
+    nikto_output = run_nikto_scan(target)
+    tool_results["nikto_output"] = nikto_output
+    tool_results["nikto_analysis"] = send_to_deepseek(nikto_output)
+    
+    # 4) Amass (apenas se o alvo não for IP)
+    if not is_ip(target):
+        console.print("\n=== Iniciando scan Amass ===", style="bold blue")
+        amass_output = run_amass_enum(target)
+        tool_results["amass_output"] = amass_output
+        tool_results["amass_analysis"] = send_to_deepseek(amass_output)
+    else:
+        tool_results["amass_output"] = "Amass não executado para IP."
+        tool_results["amass_analysis"] = None
+    
+    # 5) theHarvester
+    console.print("\n=== Iniciando scan theHarvester ===", style="bold blue")
+    theharvester_output = run_theharvester(target)
+    tool_results["theharvester_output"] = theharvester_output
+    tool_results["theharvester_analysis"] = send_to_deepseek(theharvester_output)
+    
+    # 6) Sublist3r
+    console.print("\n=== Iniciando scan Sublist3r ===", style="bold blue")
+    sublist3r_output = run_sublist3r(target)
+    tool_results["sublist3r_output"] = sublist3r_output
+    tool_results["sublist3r_analysis"] = send_to_deepseek(sublist3r_output)
+    
+    # 7) dnsrecon
+    console.print("\n=== Iniciando scan dnsrecon ===", style="bold blue")
+    dnsrecon_output = run_dnsrecon(target)
+    tool_results["dnsrecon_output"] = dnsrecon_output
+    tool_results["dnsrecon_analysis"] = send_to_deepseek(dnsrecon_output)
+    
+    # Opcional: Gerar um campo combinado se necessário para salvar no DB
+    combined_output = (
+        f"=== RESULTADOS NMAP ===\n{tool_results.get('nmap_output', '')}\n\n"
+        f"=== RESULTADOS NMAP (IP resolvido) ===\n{tool_results.get('nmap_ip_output', '')}\n\n"
+        f"=== RESULTADOS NIKTO ===\n{tool_results.get('nikto_output', '')}\n\n"
+        f"=== RESULTADOS AMASS ===\n{tool_results.get('amass_output', '')}\n\n"
+        f"=== RESULTADOS theHarvester ===\n{tool_results.get('theharvester_output', '')}\n\n"
+        f"=== RESULTADOS Sublist3r ===\n{tool_results.get('sublist3r_output', '')}\n\n"
+        f"=== RESULTADOS dnsrecon ===\n{tool_results.get('dnsrecon_output', '')}\n"
+    )
+    tool_results["combined_output"] = combined_output
+    
+    return tool_results
+
+# ==================== FUNÇÃO PARA EXIBIR RESULTADOS DE CADA FERRAMENTA ====================
+def display_sequential_results(tool_results):
+    """
+    Exibe no console os resultados de cada ferramenta e suas análises individuais.
+    """
+    console.print("\n=== RESULTADOS DOS SCANS SEQUENCIAIS ===", style="bold magenta")
+    for tool in ["nmap", "nmap_ip", "nikto", "amass", "theharvester", "sublist3r", "dnsrecon"]:
+        output = tool_results.get(f"{tool}_output", "")
+        analysis = tool_results.get(f"{tool}_analysis", {})
+        console.print(f"\n----- {tool.upper()} -----", style="bold blue")
+        console.print("[bold]Output:[/bold]")
+        console.print(output)
+        console.print("[bold]Análise:[/bold]")
+        if analysis:
+            console.print(analysis)
+        else:
+            console.print("Nenhuma análise disponível.", style="bold red")
+
+# ==================== FUNÇÃO PARA SALVAR RESULTADOS ====================
 def save_result(result_data):
     """
     Salva os resultados:
@@ -390,13 +489,13 @@ def save_result(result_data):
     
     # Salva no banco de dados
     try:
-        # Montar dados para o DB
+        # Monta dados para o DB
         timestamp = data_to_save["timestamp"]
         target = result_data.get("target", "N/A")
         combined_output = result_data.get("combined_output", "N/A")
         
         # A análise pode vir como dicionário. Convertemos para JSON, se for o caso.
-        deepseek_analysis = result_data.get("deepseek_analysis")
+        deepseek_analysis = result_data.get("nmap_analysis")  # Exemplo: usar a análise do primeiro scan
         if isinstance(deepseek_analysis, dict):
             analysis_str = json.dumps(deepseek_analysis, ensure_ascii=False, indent=2)
         else:
@@ -441,61 +540,6 @@ def export_results_to_html():
     except Exception as e:
         console.print(f"[-] Erro ao exportar resultados para HTML: {e}", style="bold red")
 
-# ==================== FUNÇÃO PRINCIPAL PARA RODAR TODOS OS SCANS ====================
-
-def run_all_scans(target):
-    """
-    Executa todas as ferramentas (Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon) para o alvo.
-    Retorna um dicionário com as saídas individuais e uma chave 'combined_output' com todos os resultados combinados.
-    """
-    # 1) Nmap principal
-    nmap_output = run_nmap_scan(target)
-    
-    # 2) Caso seja um domínio, resolver IP e executar Nmap adicional
-    ip_address = get_server_ip(target)
-    if ip_address and ip_address != target:
-        nmap_ip_output = run_nmap_scan(ip_address)
-    else:
-        nmap_ip_output = "Scan adicional não realizado (alvo já é IP ou resolução falhou)."
-    
-    # 3) Nikto
-    nikto_output = run_nikto_scan(target)
-    
-    # 4) Amass (apenas se não for IP)
-    amass_output = run_amass_enum(target) if not is_ip(target) else "Amass não executado para IP."
-    
-    # 5) theHarvester
-    theharvester_output = run_theharvester(target)
-    
-    # 6) Sublist3r
-    sublist3r_output = run_sublist3r(target)
-    
-    # 7) dnsrecon
-    dnsrecon_output = run_dnsrecon(target)
-    
-    # Combina tudo em um único texto
-    combined_output = (
-        f"=== RESULTADOS NMAP para {target} ===\n{nmap_output}\n"
-        f"=== RESULTADOS NMAP (IP resolvido: {ip_address if ip_address else 'N/A'}) ===\n{nmap_ip_output}\n"
-        f"=== RESULTADOS NIKTO para {target} ===\n{nikto_output}\n"
-        f"=== RESULTADOS AMASS para {target} ===\n{amass_output}\n"
-        f"=== RESULTADOS theHarvester para {target} ===\n{theharvester_output}\n"
-        f"=== RESULTADOS sublist3r para {target} ===\n{sublist3r_output}\n"
-        f"=== RESULTADOS dnsrecon para {target} ===\n{dnsrecon_output}\n"
-    )
-    
-    return {
-        "target": target,
-        "nmap_output": nmap_output,
-        "nmap_ip_output": nmap_ip_output,
-        "nikto_output": nikto_output,
-        "amass_output": amass_output,
-        "theharvester_output": theharvester_output,
-        "sublist3r_output": sublist3r_output,
-        "dnsrecon_output": dnsrecon_output,
-        "combined_output": combined_output
-    }
-
 # ==================== MENU PRINCIPAL ====================
 
 def main_menu():
@@ -504,7 +548,7 @@ def main_menu():
 
     while True:
         console.print("\n==== Menu de PenTest ====", style="bold blue")
-        console.print("1. Escanear um único IP/Domínio (executa Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon)")
+        console.print("1. Escanear um único IP/Domínio (executa Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon de forma sequencial)")
         console.print("2. Escanear uma lista de IPs/Domínios (arquivo)")
         console.print("3. Descoberta de dispositivos na rede (ping scan)")
         console.print("4. Visualizar resultados salvos")
@@ -515,21 +559,12 @@ def main_menu():
         
         if choice == "1":
             target = input("Digite o IP ou domínio para escanear: ").strip()
-            # Executa todos os scans para o alvo
-            scan_results = run_all_scans(target)
-            
-            # Envia resultados combinados para API
-            analysis = send_to_deepseek(scan_results["combined_output"])
-            if analysis:
-                console.print("\n=== Análise do DeepSeek (resultados combinados) ===", style="bold blue")
-                console.print(analysis)
-            else:
-                console.print("[-] A análise combinada não foi obtida.", style="bold red")
-            
-            # Salva no JSON local e no banco de dados
-            to_save = scan_results.copy()
-            to_save["deepseek_analysis"] = analysis
-            save_result(to_save)
+            # Executa os scans de forma sequencial para o alvo
+            scan_results = run_scans_sequential(target)
+            # Exibe os resultados individuais
+            display_sequential_results(scan_results)
+            # Salva os resultados no JSON local e no banco de dados
+            save_result(scan_results)
         
         elif choice == "2":
             file_path = input("Digite o caminho do arquivo com a lista de IPs/Domínios: ").strip()
@@ -542,28 +577,14 @@ def main_menu():
             
             for t in targets:
                 console.print(f"\n=== Iniciando scans para: {t} ===", style="bold blue")
-                scan_results = run_all_scans(t)
-                
-                # Mostra parcialmente no console (opcional)
-                console.print(scan_results["combined_output"][:500] + "... [exibindo apenas primeiros 500 caracteres]", style="bold yellow")
-                
-                confirm = input(f"Deseja enviar o resultado do alvo {t} para análise do DeepSeek? (s/n): ").strip().lower()
+                scan_results = run_scans_sequential(t)
+                # Exibe os primeiros resultados (opcional)
+                console.print(scan_results["combined_output"][:500] + "... [exibindo apenas os primeiros 500 caracteres]", style="bold yellow")
+                confirm = input(f"Deseja salvar os resultados do alvo {t}? (s/n): ").strip().lower()
                 if confirm == 's':
-                    analysis = send_to_deepseek(scan_results["combined_output"])
-                    if analysis:
-                        console.print("\n=== Análise do DeepSeek ===", style="bold blue")
-                        console.print(analysis)
-                        # Salva no JSON e DB
-                        to_save = scan_results.copy()
-                        to_save["deepseek_analysis"] = analysis
-                        save_result(to_save)
-                    else:
-                        console.print(f"[-] A análise não foi obtida para {t}.", style="bold red")
+                    save_result(scan_results)
                 else:
-                    console.print(f"[*] Resultado para {t} não enviado para análise.", style="bold yellow")
-                    # Mesmo se não enviar para a API, podemos querer salvar localmente ou não.
-                    # Caso queira apenas salvar local sem análise:
-                    # save_result(scan_results)
+                    console.print(f"[*] Resultados para {t} não salvos.", style="bold yellow")
         
         elif choice == "3":
             network_range = input("Digite o range da rede (ex.: 192.168.1.0/24): ").strip()
