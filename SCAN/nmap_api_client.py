@@ -9,12 +9,14 @@ Funcionalidades:
     - Integração dos resultados de todas as ferramentas em uma única saída, enviada para a API do DeepSeek.
     - Visualização e exportação dos resultados (JSON e HTML).
     - Salvamento automático dos IPs encontrados em network_devices.txt.
+    - **Gravação dos resultados no banco de dados SQLite (scan_results.db).**
 
 Requisitos:
     - Python 3.7+
     - Ferramentas instaladas e acessíveis via linha de comando: Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon e masscan.
     - API do DeepSeek (via Ollama) rodando localmente.
     - Bibliotecas: requests (pip install requests) e rich (pip install rich).
+    - Biblioteca para banco de dados SQLite (nativa no Python) ou outro DB à sua escolha.
 
 Autor: Thalles Canela
 Data: 2025-02-02 (Atualizado: 2025-02-08)
@@ -25,6 +27,7 @@ import subprocess
 import json
 import re
 import socket
+import sqlite3  # Biblioteca nativa para SQLite
 from datetime import datetime
 import requests
 from rich.console import Console
@@ -73,7 +76,47 @@ CONTEXT_MESSAGE_Exploracao = (
 RESULTS_FILE = "results.json"
 NETWORK_DEVICES_FILE = "network_devices.txt"
 
+DB_FILE = "scan_results.db"  # Nome do arquivo local do banco SQLite
+
 console = Console()
+
+# ==================== FUNÇÕES DE BANCO DE DADOS ====================
+
+def init_db():
+    """
+    Cria o arquivo de banco de dados (scan_results.db) e a tabela scan_results (caso não existam).
+    """
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute(
+        """CREATE TABLE IF NOT EXISTS scan_results (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            target TEXT,
+            combined_output TEXT,
+            analysis TEXT
+        )"""
+    )
+    conn.commit()
+    conn.close()
+
+def save_to_database(timestamp, target, combined_output, analysis):
+    """
+    Insere um novo registro na tabela scan_results.
+    - timestamp: string de data/hora
+    - target: alvo (IP ou domínio)
+    - combined_output: texto completo dos resultados das ferramentas
+    - analysis: texto (JSON ou string) da análise retornada pela API
+    """
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute(
+        """INSERT INTO scan_results (timestamp, target, combined_output, analysis)
+           VALUES (?, ?, ?, ?)""",
+        (timestamp, target, combined_output, analysis)
+    )
+    conn.commit()
+    conn.close()
 
 # ==================== FUNÇÕES AUXILIARES ====================
 
@@ -319,7 +362,12 @@ def display_analysis(analysis):
     console.print(f"\n[bold]Tempo de Processamento:[/bold] {processing_time:.2f} segundos", style="bold green")
 
 def save_result(result_data):
-    """Salva os resultados em um arquivo JSON (results.json), mantendo histórico."""
+    """
+    Salva os resultados:
+      1) Em um arquivo JSON (results.json).
+      2) No banco de dados SQLite (scan_results.db).
+    """
+    # Salva em JSON
     data_to_save = {"timestamp": datetime.now().isoformat(), "result": result_data}
     results_list = []
     if os.path.exists(RESULTS_FILE):
@@ -335,6 +383,25 @@ def save_result(result_data):
         console.print(f"[+] Resultados salvos em '{RESULTS_FILE}'", style="bold green")
     except Exception as e:
         console.print(f"[-] Erro ao salvar resultados: {e}", style="bold red")
+    
+    # Salva no banco de dados
+    try:
+        # Montar dados para o DB
+        timestamp = data_to_save["timestamp"]
+        target = result_data.get("target", "N/A")
+        combined_output = result_data.get("combined_output", "N/A")
+        
+        # A análise pode vir como dicionário. Convertemos para JSON, se for o caso.
+        deepseek_analysis = result_data.get("deepseek_analysis")
+        if isinstance(deepseek_analysis, dict):
+            analysis_str = json.dumps(deepseek_analysis, ensure_ascii=False, indent=2)
+        else:
+            analysis_str = str(deepseek_analysis)  # caso seja None ou string
+        
+        save_to_database(timestamp, target, combined_output, analysis_str)
+        console.print("[+] Resultados também gravados no banco de dados (scan_results.db).", style="bold green")
+    except Exception as e:
+        console.print(f"[-] Erro ao salvar no banco de dados: {e}", style="bold red")
 
 def view_results():
     """Exibe os resultados salvos no arquivo JSON."""
@@ -428,6 +495,9 @@ def run_all_scans(target):
 # ==================== MENU PRINCIPAL ====================
 
 def main_menu():
+    # Inicializa/cria a tabela do banco de dados, caso ainda não exista.
+    init_db()
+
     while True:
         console.print("\n==== Menu de PenTest ====", style="bold blue")
         console.print("1. Escanear um único IP/Domínio (executa Nmap, Nikto, Amass, theHarvester, sublist3r e dnsrecon)")
@@ -452,7 +522,7 @@ def main_menu():
             else:
                 console.print("[-] A análise combinada não foi obtida.", style="bold red")
             
-            # Salva no JSON local
+            # Salva no JSON local e no banco de dados
             to_save = scan_results.copy()
             to_save["deepseek_analysis"] = analysis
             save_result(to_save)
@@ -479,7 +549,7 @@ def main_menu():
                     if analysis:
                         console.print("\n=== Análise do DeepSeek ===", style="bold blue")
                         console.print(analysis)
-                        # Salva no JSON
+                        # Salva no JSON e DB
                         to_save = scan_results.copy()
                         to_save["deepseek_analysis"] = analysis
                         save_result(to_save)
@@ -487,6 +557,9 @@ def main_menu():
                         console.print(f"[-] A análise não foi obtida para {t}.", style="bold red")
                 else:
                     console.print(f"[*] Resultado para {t} não enviado para análise.", style="bold yellow")
+                    # Mesmo se não enviar para a API, podemos querer salvar localmente ou não.
+                    # Caso queira apenas salvar local sem análise:
+                    # save_result(scan_results)
         
         elif choice == "3":
             network_range = input("Digite o range da rede (ex.: 192.168.1.0/24): ").strip()
