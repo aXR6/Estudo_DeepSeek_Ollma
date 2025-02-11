@@ -330,18 +330,17 @@ def run_sslyze_scan(target):
     Executa uma varredura agressiva com SSLyze para o alvo especificado.
     - Normaliza o target e, se não houver porta, adiciona ":443" como padrão.
     - Utiliza diversas flags para testar vulnerabilidades e configurações TLS de forma agressiva.
-    Retorna a saída do comando.
-    
-    Comando utilizado:
-        sslyze --heartbleed --fallback --certinfo --tlsv1 --tlsv1_1 --tlsv1_2 --tlsv1_3 --sslv3 --sslv2
-                --openssl_ccs --reneg --elliptic_curves --compression --early_data --resum --resum_attempts 100
-                --robot --mozilla_config modern target:443
+    Retorna a saída (stdout) do comando juntamente com possíveis avisos (stderr)
+    caso o returncode seja 0.
     """
     normalized_target = normalize_target(target)
     # Se o target não incluir a porta, adiciona ":443"
     if ":" not in normalized_target:
         normalized_target = f"{normalized_target}:443"
+    
     log_message(f"Iniciando scan SSLyze para {normalized_target}")
+    
+    # Comando completo
     cmd = [
         "sslyze",
         "--heartbleed",
@@ -364,16 +363,33 @@ def run_sslyze_scan(target):
         "--mozilla_config", "modern",
         normalized_target
     ]
+    
     log_message(f"Executando SSLyze com o comando: {' '.join(cmd)}")
+    
     try:
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+        # Não usamos check=True para não tratar qualquer mensagem em stderr como erro
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        
+        # Se o retorno for diferente de 0, tratamos como erro
+        if proc.returncode != 0:
+            error_msg = f"Erro no SSLyze (codigo: {proc.returncode}):\n{proc.stderr}"
+            log_message(error_msg)
+            return error_msg
+        
+        # Se chegou aqui, returncode == 0 => pode ter apenas warnings em stderr
         output = proc.stdout
+        stderr_warnings = proc.stderr.strip()
+        if stderr_warnings:
+            # Podemos exibir junto do output, sinalizando como "aviso"
+            output += f"\n[AVISOS/WARNINGS do SSLyze]\n{stderr_warnings}\n"
+        
         log_message("Scan SSLyze concluído.")
         return output
-    except subprocess.CalledProcessError as e:
-        error = f"Erro no SSLyze: {e.stderr}"
-        log_message(error)
-        return error
+    
+    except Exception as e:
+        error_msg = f"Erro ao executar o SSLyze: {str(e)}"
+        log_message(error_msg)
+        return error_msg
 
 # ==================== FUNÇÃO DE ENVIO PARA A API ====================
 def send_to_deepseek(scan_data):
@@ -481,13 +497,13 @@ def run_scans_sequential(target):
     tool_results["dnsrecon_output"] = dnsrecon_output
     tool_results["dnsrecon_analysis"] = send_to_deepseek(dnsrecon_output)
     
-    # 8) SSLyze (novo scanner agressivo)
+    # 8) SSLyze
     console.print("\n=== Iniciando scan SSLyze ===", style="bold blue")
     sslyze_output = run_sslyze_scan(target)
     tool_results["sslyze_output"] = sslyze_output
     tool_results["sslyze_analysis"] = send_to_deepseek(sslyze_output)
     
-    # Gera um campo combinado se necessário para salvar no DB
+    # Monta a saída combinada (apenas para referência ou salvamento posterior)
     combined_output = (
         f"=== RESULTADOS NMAP ===\n{tool_results.get('nmap_output', '')}\n\n"
         f"=== RESULTADOS NMAP (IP resolvido) ===\n{tool_results.get('nmap_ip_output', '')}\n\n"
@@ -616,9 +632,9 @@ def main_menu():
         
         if choice == "1":
             target = input("Digite o IP ou domínio para escanear: ").strip()
-            # Executa os scans de forma sequencial para o alvo
+            # Aqui chamamos a função SEQUENCIAL que envia cada resultado individual à API
             scan_results = run_scans_sequential(target)
-            # Exibe os resultados individuais
+            # Exibe os resultados individuais (opcional, mas útil)
             display_sequential_results(scan_results)
             # Salva os resultados no JSON local e no banco de dados
             save_result(scan_results)
@@ -635,8 +651,10 @@ def main_menu():
             for t in targets:
                 console.print(f"\n=== Iniciando scans para: {t} ===", style="bold blue")
                 scan_results = run_scans_sequential(t)
-                # Exibe os primeiros resultados (opcional)
-                console.print(scan_results["combined_output"][:500] + "... [exibindo apenas os primeiros 500 caracteres]", style="bold yellow")
+                
+                # Exibe uma parte do resultado (ou use display_sequential_results, se preferir)
+                console.print(scan_results["combined_output"][:500] + "... [primeiros 500 caracteres]", style="bold yellow")
+                
                 confirm = input(f"Deseja salvar os resultados do alvo {t}? (s/n): ").strip().lower()
                 if confirm == 's':
                     save_result(scan_results)
