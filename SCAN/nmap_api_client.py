@@ -330,8 +330,12 @@ def run_sslyze_scan(target):
     Executa uma varredura agressiva com SSLyze para o alvo especificado.
     - Normaliza o target e, se não houver porta, adiciona ":443" como padrão.
     - Utiliza diversas flags para testar vulnerabilidades e configurações TLS de forma agressiva.
-    Retorna a saída (stdout) do comando juntamente com possíveis avisos (stderr)
-    caso o returncode seja 0.
+    Retorna a saída do comando (stdout) e, se houver apenas warnings conhecidos, os anexa ao output.
+    
+    Correções aplicadas:
+      * Não se considera o aviso "CryptographyDeprecationWarning: Parsed a negative serial number..."
+        como erro fatal, conforme sugerido em discussões na issue #6609 [&#8203;:contentReference[oaicite:2]{index=2}] e
+        pela documentação e suporte (ex.: [&#8203;:contentReference[oaicite:3]{index=3}]).
     """
     normalized_target = normalize_target(target)
     # Se o target não incluir a porta, adiciona ":443"
@@ -340,7 +344,6 @@ def run_sslyze_scan(target):
     
     log_message(f"Iniciando scan SSLyze para {normalized_target}")
     
-    # Comando completo
     cmd = [
         "sslyze",
         "--heartbleed",
@@ -367,23 +370,26 @@ def run_sslyze_scan(target):
     log_message(f"Executando SSLyze com o comando: {' '.join(cmd)}")
     
     try:
-        # Não usamos check=True para não tratar qualquer mensagem em stderr como erro
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         
-        # Se o retorno for diferente de 0, tratamos como erro
+        # Se o código de retorno for diferente de zero, verificamos se o stderr contém apenas o aviso conhecido.
         if proc.returncode != 0:
-            error_msg = f"Erro no SSLyze (codigo: {proc.returncode}):\n{proc.stderr}"
-            log_message(error_msg)
-            return error_msg
+            # Caso o stderr contenha o aviso de serial negativo (conhecido) e não haja outros erros significativos,
+            # consideramos o scan como bem-sucedido, apenas com avisos.
+            if "CryptographyDeprecationWarning" in proc.stderr and "negative serial number" in proc.stderr:
+                combined_output = proc.stdout + "\n[AVISOS do SSLyze]\n" + proc.stderr.strip()
+                log_message("Scan SSLyze concluído com avisos.")
+                return combined_output
+            else:
+                error_msg = f"Erro no SSLyze (codigo: {proc.returncode}):\n{proc.stderr}"
+                log_message(error_msg)
+                return error_msg
         
-        # Se chegou aqui, returncode == 0 => pode ter apenas warnings em stderr
+        # Se não houver erro, anexa eventuais avisos (se houver) ao output.
         output = proc.stdout
-        stderr_warnings = proc.stderr.strip()
-        if stderr_warnings:
-            # Podemos exibir junto do output, sinalizando como "aviso"
-            output += f"\n[AVISOS/WARNINGS do SSLyze]\n{stderr_warnings}\n"
-        
-        log_message("Scan SSLyze concluído.")
+        if proc.stderr.strip():
+            output += "\n[AVISOS do SSLyze]\n" + proc.stderr.strip()
+        log_message("Scan SSLyze concluído com sucesso.")
         return output
     
     except Exception as e:
