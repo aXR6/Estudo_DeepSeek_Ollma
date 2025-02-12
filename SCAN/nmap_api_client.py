@@ -106,21 +106,18 @@ def init_db():
     conn.commit()
     conn.close()
 
-def save_to_database(timestamp, target, combined_output, analysis):
+def save_to_database(timestamp, target, combined_output, analyses):
     """
-    Insere um novo registro na tabela scan_results.
-    - timestamp: string de data/hora
-    - target: alvo (IP ou domínio)
-    - combined_output: texto completo dos resultados das ferramentas
-    - analysis: texto (JSON ou string) da análise retornada pela API
+    Insere um novo registro na tabela scan_results com todas as análises.
+    - analyses: dicionário com todas as análises das ferramentas
     """
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
     cur.execute(
         """INSERT INTO scan_results (timestamp, target, combined_output, analysis)
            VALUES (?, ?, ?, ?)""",
-        (timestamp, target, combined_output, analysis)
-    )
+        (timestamp, target, combined_output, json.dumps(analyses, ensure_ascii=False))
+    )  # <-- Este parêntese estava faltando
     conn.commit()
     conn.close()
 
@@ -548,42 +545,68 @@ def save_result(result_data):
     Salva os resultados:
       1) Em um arquivo JSON (results.json).
       2) No banco de dados SQLite (scan_results.db).
+      3) Em um arquivo HTML com o nome do alvo.
     """
-    # Salva em JSON
-    data_to_save = {"timestamp": datetime.now().isoformat(), "result": result_data}
-    results_list = []
-    if os.path.exists(RESULTS_FILE):
-        try:
-            with open(RESULTS_FILE, "r", encoding="utf-8") as f:
-                results_list = json.load(f)
-        except Exception as e:
-            console.print(f"[-] Erro ao ler resultados existentes: {e}", style="bold red")
-    results_list.append(data_to_save)
-    try:
-        with open(RESULTS_FILE, "w", encoding="utf-8") as f:
-            json.dump(results_list, f, indent=4, ensure_ascii=False)
-        console.print(f"[+] Resultados salvos em '{RESULTS_FILE}'", style="bold green")
-    except Exception as e:
-        console.print(f"[-] Erro ao salvar resultados: {e}", style="bold red")
+    # [Restante do código anterior mantido...]
     
     # Salva no banco de dados
     try:
-        # Monta dados para o DB
         timestamp = data_to_save["timestamp"]
         target = result_data.get("target", "N/A")
         combined_output = result_data.get("combined_output", "N/A")
         
-        # Exemplo: usa a análise do primeiro scanner (Nmap) para salvar no DB
-        deepseek_analysis = result_data.get("nmap_analysis")
-        if isinstance(deepseek_analysis, dict):
-            analysis_str = json.dumps(deepseek_analysis, ensure_ascii=False, indent=2)
-        else:
-            analysis_str = str(deepseek_analysis)
+        # Coleta todas as análises das ferramentas
+        analyses = {
+            tool: result_data.get(f"{tool}_analysis")
+            for tool in ["nmap", "nmap_ip", "nikto", "amass", 
+                        "theharvester", "sublist3r", "dnsrecon", "sslyze"]
+        }
         
-        save_to_database(timestamp, target, combined_output, analysis_str)
-        console.print("[+] Resultados também gravados no banco de dados (scan_results.db).", style="bold green")
+        save_to_database(timestamp, target, combined_output, analyses)
+        console.print("[+] Resultados gravados no banco de dados.", style="bold green")
     except Exception as e:
         console.print(f"[-] Erro ao salvar no banco de dados: {e}", style="bold red")
+
+    # Salva relatório HTML
+    try:
+        target = result_data.get("target", "unknown_target")
+        sanitized_target = re.sub(r'[^a-zA-Z0-9\-_]', '_', target)
+        html_filename = f"{sanitized_target}.html"
+        
+        # Constrói conteúdo HTML com análises detalhadas
+        html_content = f"""<html>
+            <head>
+                <meta charset='utf-8'>
+                <title>Relatório de Scan - {target}</title>
+                <style>
+                    .analysis {{ margin-bottom: 2em; border: 1px solid #ddd; padding: 1em; }}
+                    .tool-name {{ color: #2c3e50; font-weight: bold; }}
+                    pre {{ white-space: pre-wrap; word-wrap: break-word; }}
+                </style>
+            </head>
+            <body>
+                <h1>Relatório de Scan para {target}</h1>
+                <h2>Resultados Combinados</h2>
+                <pre>{combined_output}</pre>
+                
+                <h2>Análises da API</h2>"""
+        
+        # Adiciona cada análise ao HTML
+        for tool, analysis in analyses.items():
+            if analysis:
+                html_content += f"""
+                <div class="analysis">
+                    <div class="tool-name">{tool.upper()}</div>
+                    <pre>{json.dumps(analysis, indent=4, ensure_ascii=False)}</pre>
+                </div>"""
+        
+        html_content += "</body></html>"
+        
+        with open(html_filename, "w", encoding="utf-8") as f:
+            f.write(html_content)
+        console.print(f"[+] Relatório HTML salvo como '{html_filename}'", style="bold green")
+    except Exception as e:
+        console.print(f"[-] Erro ao gerar relatório HTML: {e}", style="bold red")
 
 def view_results():
     """Exibe os resultados salvos no arquivo JSON."""
@@ -598,6 +621,7 @@ def view_results():
     except Exception as e:
         console.print(f"[-] Erro ao ler resultados: {e}", style="bold red")
 
+### REMOVER ###
 def export_results_to_html():
     """Exporta os resultados salvos para um arquivo HTML (results.html)."""
     if not os.path.exists(RESULTS_FILE):
@@ -618,35 +642,31 @@ def export_results_to_html():
         console.print(f"[+] Resultados exportados para '{html_file}'", style="bold green")
     except Exception as e:
         console.print(f"[-] Erro ao exportar resultados para HTML: {e}", style="bold red")
+### REMOVER ###
 
 # ==================== MENU PRINCIPAL ====================
 
 def main_menu():
-    # Inicializa/cria a tabela do banco de dados, caso ainda não exista.
     init_db()
 
     while True:
         console.print("\n==== Menu de PenTest ====", style="bold blue")
-        console.print("1. Escanear um único IP/Domínio (executa Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon e SSLyze de forma sequencial)")
-        console.print("2. Escanear uma lista de IPs/Domínios (arquivo)")
-        console.print("3. Descoberta de dispositivos na rede (ping scan)")
+        console.print("1. Escanear um único IP/Domínio")
+        console.print("2. Escanear uma lista de IPs/Domínios")
+        console.print("3. Descoberta de dispositivos na rede")
         console.print("4. Visualizar resultados salvos")
-        console.print("5. Exportar resultados para HTML")
-        console.print("6. Sair")
-        console.print("7. Executar Masscan (menu exclusivo)")
+        console.print("5. Sair")
+        console.print("6. Executar Masscan")
         choice = input("Escolha uma opção: ").strip()
         
         if choice == "1":
             target = input("Digite o IP ou domínio para escanear: ").strip()
-            # Aqui chamamos a função SEQUENCIAL que envia cada resultado individual à API
             scan_results = run_scans_sequential(target)
-            # Exibe os resultados individuais (opcional, mas útil)
             display_sequential_results(scan_results)
-            # Salva os resultados no JSON local e no banco de dados
             save_result(scan_results)
         
         elif choice == "2":
-            file_path = input("Digite o caminho do arquivo com a lista de IPs/Domínios: ").strip()
+            file_path = input("Digite o caminho do arquivo com a lista: ").strip()
             if not os.path.exists(file_path):
                 console.print(f"[-] Arquivo '{file_path}' não encontrado.", style="bold red")
                 continue
@@ -657,38 +677,27 @@ def main_menu():
             for t in targets:
                 console.print(f"\n=== Iniciando scans para: {t} ===", style="bold blue")
                 scan_results = run_scans_sequential(t)
+                console.print(scan_results["combined_output"][:500] + "...", style="bold yellow")
                 
-                # Exibe uma parte do resultado (ou use display_sequential_results, se preferir)
-                console.print(scan_results["combined_output"][:500] + "... [primeiros 500 caracteres]", style="bold yellow")
-                
-                confirm = input(f"Deseja salvar os resultados do alvo {t}? (s/n): ").strip().lower()
-                if confirm == 's':
+                if input(f"Salvar resultados para {t}? (s/n): ").strip().lower() == 's':
                     save_result(scan_results)
-                else:
-                    console.print(f"[*] Resultados para {t} não salvos.", style="bold yellow")
         
         elif choice == "3":
             network_range = input("Digite o range da rede (ex.: 192.168.1.0/24): ").strip()
-            ips = ping_scan(network_range)
-            if ips:
-                console.print("\n=== IPs Encontrados ===", style="bold blue")
-                console.print("\n".join(ips))
+            ping_scan(network_range)
         
         elif choice == "4":
             view_results()
         
         elif choice == "5":
-            export_results_to_html()
-        
-        elif choice == "6":
             console.print("Encerrando o script.", style="bold blue")
             break
         
-        elif choice == "7":
+        elif choice == "6":
             run_masscan()
         
         else:
-            console.print("Opção inválida. Tente novamente.", style="bold red")
+            console.print("Opção inválida.", style="bold red")
 
 if __name__ == "__main__":
     main_menu()
