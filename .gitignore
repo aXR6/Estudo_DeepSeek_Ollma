@@ -3,5 +3,6 @@
 *.txt
 *.db
 *.log
+*.html
 ./API/db
 ./API/logs
