@@ -47,12 +47,22 @@ CONTEXT_MESSAGE_Protecao = (
     "port scanning, detecção de serviços, enumeração de subdomínios, vulnerabilidades conhecidas e informações DNS. \n\n"
     
     "Instruções:\n"
-    "1. Analise detalhadamente os resultados apresentados, organizando-os por ferramenta e destacando informações críticas.\n"
-    "2. Identifique e classifique as vulnerabilidades e riscos encontrados, determinando a gravidade de cada item (ex.: baixa, média, alta) e, sempre que possível, referenciando CVEs ou boas práticas de segurança.\n"
-    "3. Forneça recomendações técnicas específicas para a mitigação ou correção de cada vulnerabilidade, incluindo sugestões de controles e medidas corretivas.\n"
-    "4. Considere possíveis falsos positivos e indique sugestões para sua validação, se aplicável.\n"
-    "5. A análise deve conter uma avaliação de impacto, detalhando como as vulnerabilidades podem ser exploradas e afetar o ambiente.\n"
-    "6. Utilize terminologia técnica de PenTest e de segurança da informação. \n\n"
+    "1. Analise detalhadamente os resultados apresentados, organizando-os por ferramenta e destacando informações críticas. Considere o papel de cada ferramenta:\n"
+    "   - Nmap: Identificação de portas abertas, serviços expostos e sistemas operacionais.\n"
+    "   - Nikto: Detecção de vulnerabilidades em servidores web, como configurações inseguras e arquivos sensíveis expostos.\n"
+    "   - Amass/theHarvester: Enumeração de subdomínios e coleta de informações públicas (OSINT).\n"
+    "   - Sublist3r/dnsrecon: Descoberta de registros DNS e subdomínios esquecidos ou mal configurados.\n"
+    "   - SSLyze: Análise de configurações de SSL/TLS, identificando problemas como certificados expirados ou protocolos inseguros.\n"
+    "2. Identifique e classifique as vulnerabilidades e riscos encontrados, determinando a gravidade de cada item (baixa, média, alta) com base em uma matriz de risco (impacto x probabilidade). Sempre que possível, referencie CVEs ou boas práticas de segurança.\n"
+    "3. Forneça recomendações técnicas específicas para a mitigação ou correção de cada vulnerabilidade, incluindo sugestões de controles e medidas corretivas. Exemplos:\n"
+    "   - Serviços desatualizados: Aplicar patches ou substituir por alternativas seguras.\n"
+    "   - Configurações inseguras: Implementar hardening de sistemas e servidores.\n"
+    "   - Certificados SSL/TLS: Renovar certificados expirados e desativar protocolos obsoletos (ex.: TLS 1.0).\n"
+    "4. Considere possíveis falsos positivos e indique métodos para sua validação, como verificações manuais, uso de múltiplas ferramentas ou testes adicionais em ambiente controlado.\n"
+    "5. A análise deve conter uma avaliação de impacto, detalhando como as vulnerabilidades podem ser exploradas e afetar o ambiente. Inclua cenários hipotéticos ou exemplos reais de ataques relacionados. Exemplo:\n"
+    "   - Portas abertas em firewalls podem permitir acesso não autorizado a serviços internos.\n"
+    "   - Subdomínios esquecidos podem ser usados para phishing ou ataques de força bruta.\n"
+    "6. Utilize terminologia técnica de PenTest e de segurança da informação, como 'CVE', 'hardening', 'enumeração' e 'falsos positivos'.\n\n"
     
     "Você está recebendo dados levantados pelos softwares: Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon e SSLyze. "
     "Observação importante: Apresente toda a sua análise em Português do Brasil (PT-BR). "
@@ -66,13 +76,22 @@ CONTEXT_MESSAGE_Exploracao = (
     "port scanning, detecção de serviços, enumeração de subdomínios, vulnerabilidades conhecidas, banners e informações DNS.\n\n"
     
     "Instruções:\n"
-    "1. Analise detalhadamente os resultados apresentados, organizando-os por ferramenta e destacando as informações críticas para a exploração das falhas.\n"
-    "2. Identifique e classifique as vulnerabilidades e riscos encontrados, determinando a gravidade de cada item (ex.: baixa, média, alta) e, sempre que possível, referenciando CVEs e evidências técnicas.\n"
-    "3. Para cada vulnerabilidade, forneça sugestões de vetores de exploração, descrevendo como um atacante poderia utilizar a falha para comprometer o alvo, e, se possível, inclua ideias de proof-of-concept.\n"
-    "4. Apresente recomendações técnicas específicas para a mitigação ou correção das vulnerabilidades, sugerindo controles e medidas corretivas adequadas.\n"
-    "5. Considere a possibilidade de falsos positivos, indicando métodos para sua validação.\n"
-    "6. A análise deve incluir uma avaliação do impacto, detalhando as consequências de uma exploração bem-sucedida para o ambiente.\n"
-    "7. Utilize terminologia técnica de PenTest e de segurança da informação.\n\n"
+    "1. Analise detalhadamente os resultados apresentados, organizando-os por ferramenta e destacando as informações críticas para a exploração das falhas. Considere o papel de cada ferramenta:\n"
+    "   - Nmap: Identificação de portas abertas e serviços expostos.\n"
+    "   - Nikto: Detecção de vulnerabilidades em servidores web.\n"
+    "   - Amass/theHarvester: Enumeração de subdomínios e informações públicas.\n"
+    "   - SSLyze: Análise de configurações de SSL/TLS.\n"
+    "2. Identifique e classifique as vulnerabilidades e riscos encontrados, determinando a gravidade de cada item (baixa, média, alta) com base em uma matriz de risco (impacto x probabilidade). Sempre que possível, referencie CVEs e evidências técnicas.\n"
+    "3. Para cada vulnerabilidade, forneça sugestões de vetores de exploração, descrevendo como um atacante poderia utilizar a falha para comprometer o alvo. Exemplos:\n"
+    "   - Serviços desatualizados: Uso de exploits públicos via Metasploit.\n"
+    "   - Subdomínios esquecidos: Brute force ou fuzzing para encontrar endpoints vulneráveis.\n"
+    "4. Inclua ideias de proof-of-concept, como scripts ou comandos simples para validar a vulnerabilidade. Exemplo:\n"
+    "   - Script Python para testar injeção SQL.\n"
+    "   - Uso do Burp Suite para interceptar e manipular requisições HTTP.\n"
+    "5. Apresente recomendações técnicas específicas para a mitigação ou correção das vulnerabilidades, sugerindo controles e medidas corretivas adequadas. Explique como cada controle bloquearia o vetor de ataque sugerido.\n"
+    "6. Considere a possibilidade de falsos positivos, indicando métodos para sua validação, como verificações manuais ou uso de múltiplas ferramentas.\n"
+    "7. A análise deve incluir uma avaliação do impacto, detalhando as consequências de uma exploração bem-sucedida para o ambiente. Inclua cenários hipotéticos ou exemplos reais de ataques relacionados.\n"
+    "8. Utilize terminologia técnica avançada de PenTest e de segurança da informação, como 'payload', 'exploit' e 'post-exploitation'.\n\n"
     
     "Você está recebendo dados levantados pelos softwares: Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon e SSLyze. "
     "Observação importante: Apresente toda a sua análise em Português do Brasil (PT-BR). "
@@ -123,6 +142,24 @@ def save_to_database(timestamp, target, combined_output, analyses):
 
 # ==================== FUNÇÕES AUXILIARES ====================
 
+def normalize_target(target):
+    """
+    Normaliza o alvo removendo prefixos como http://, https://, www., etc.,
+    garantindo que o formato seja adequado para as diferentes ferramentas.
+    - Para IPs: retorna o IP sem modificações.
+    - Para domínios: remove protocolos e subdomínios www.
+    - Mantém porta se especificada (ex: google.com:443 → google.com:443).
+    - Preserva caminhos após o domínio (ex: http://site.com/path → site.com/path).
+    """
+    target = target.strip().lower()
+    for proto in ["http://", "https://", "www.", "http", "https", "ftp://", "sftp://"]:
+        if target.startswith(proto):
+            target = target[len(proto):]
+            break
+    if not re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$', target):
+        target = target.lstrip("www.")
+    return target
+
 def log_message(msg):
     """Exibe uma mensagem no terminal com data/hora."""
     console.print(f"[bold][{datetime.now().isoformat()}][/bold] {msg}")
@@ -130,18 +167,6 @@ def log_message(msg):
 def is_ip(target):
     """Retorna True se o target for um endereço IP no formato xxx.xxx.xxx.xxx."""
     return re.match(r'^\d{1,3}(\.\d{1,3}){3}$', target) is not None
-
-def normalize_target(target):
-    """
-    Normaliza a entrada removendo os seguintes prefixos:
-    "http://", "https://", "www.", "http" e "https".
-    Retorna o domínio em formato 'puro'.
-    """
-    t = target.lower().strip()
-    for prefix in ["http://", "https://", "www.", "http", "https"]:
-        if t.startswith(prefix):
-            t = t[len(prefix):]
-    return t
 
 def run_nmap_scan(target):
     """
@@ -551,7 +576,7 @@ def save_result(result_data):
     
     # Salva no banco de dados
     try:
-        timestamp = data_to_save["timestamp"]
+        timestamp = datetime.now().isoformat()
         target = result_data.get("target", "N/A")
         combined_output = result_data.get("combined_output", "N/A")
         
