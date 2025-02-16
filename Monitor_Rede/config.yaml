@@ -1,0 +1,17 @@
+network:
+  interface: enp8s0
+  whitelist:
+    - 192.168.3.100
+  max_pps: 5000
+  max_syn_ratio: 0.8
+  burst_window: 5
+
+api:
+  endpoint: "http://localhost:5000/analyze"
+  key: "sk_prod_1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+  timeout: 30
+  threshold: 0.85
+
+logging:
+  level: "INFO"
+  file: "/var/log/art_system.log"
