@@ -62,6 +62,24 @@ DEFAULT_CONFIG = {
     }
 }
 
+# Novo contexto detalhado para análise enviado à IA
+CONTEXT_MESSAGE_ART = (
+    "Objetivo: Fornecer uma análise técnica detalhada dos dados de tráfego de rede coletados pelo ART-System, "
+    "identificando padrões anômalos como picos de pacotes, ataques SYN flood e port scanning, correlacionando-os com "
+    "a baseline estabelecida do tráfego normal. Os dados foram capturados em tempo real e incluem contadores por protocolo, "
+    "histórico de pacotes por segundo (PPS) e estatísticas detalhadas por IP.\n\n"
+    "Instruções:\n"
+    "1. Analise os dados apresentados, considerando as métricas 'current_counts', 'pps_history' e 'ip_stats'.\n"
+    "2. Compare os valores atuais com a baseline para identificar desvios significativos que possam indicar ataques em andamento.\n"
+    "3. Classifique as anomalias detectadas (por exemplo, considere SYN flood se a proporção de pacotes SYN ultrapassar o limite configurado, ou port scanning se um IP acessar muitas portas em curto período).\n"
+    "4. Forneça recomendações técnicas específicas para mitigar os riscos, como bloquear IPs suspeitos ou limitar a taxa de conexões via iptables.\n\n"
+    "Dados adicionais fornecidos:\n"
+    "- 'baseline': Média de PPS e proporção de pacotes SYN em tráfego normal.\n"
+    "- 'current_counts': Contadores atuais de pacotes totais, TCP, UDP, ICMP e SYN.\n"
+    "- 'pps_history': Histórico recente de pacotes por segundo.\n"
+    "- 'ip_stats': Estatísticas detalhadas por IP, incluindo contagem, portas acessadas, flags e último acesso.\n\n"
+    "Apresente toda a análise em Português do Brasil (PT-BR)."
+)
 class TrafficAnalyzer:
     """Analisador de padrões de tráfego em tempo real"""
     
@@ -227,8 +245,12 @@ class APIClient:
             'Content-Type': 'application/json'
         }
         
-    def send_for_analysis(self, packet_data: str, context: str) -> Optional[Dict]:
-        """Envia dados para análise via API"""
+    def send_for_analysis(self, packet_data: str, context: Dict) -> Optional[Dict]:
+        """
+        Envia dados para análise via API.
+        
+        O payload inclui os dados do tráfego ('packet_data') e um contexto enriquecido que contém instruções detalhadas e informações do sistema.
+        """
         payload = {
             'scan_data': packet_data,
             'context': context,
@@ -247,7 +269,6 @@ class APIClient:
         except requests.exceptions.RequestException as e:
             logging.error(f"Erro na API: {str(e)}")
             return None
-
 class ARTSystem:
     """Sistema principal de monitoramento"""
     
@@ -290,27 +311,35 @@ class ARTSystem:
         self.sniffer.start()  # Reinicia o sniffer
             
     def _handle_anomalies(self, anomalies: List[Dict]):
-        """Trata anomalias detectadas"""
+        """Trata as anomalias detectadas e envia um contexto enriquecido para análise pela IA."""
         logging.warning(f"Anomalias detectadas: {len(anomalies)}")
         
         packet_data = self._capture_traffic()
+        
+        # Elaboração do contexto para análise, combinando dados atuais e instruções detalhadas
         context = {
+            'context_message': CONTEXT_MESSAGE_ART,
             'timestamp': datetime.now().isoformat(),
             'anomalies': anomalies,
-            'baseline': self.analyzer.baseline
+            'baseline': self.analyzer.baseline,
+            'current_counts': self.analyzer.current_counts,
+            'pps_history': list(self.analyzer.pps_history),
+            'ip_stats': {
+                ip: {
+                    'count': data['count'],
+                    'ports': list(data['ports']),
+                    'flags': dict(data['flags']),
+                    'last_seen': data['last_seen']
+                }
+                for ip, data in self.analyzer.ip_stats.items()
+            }
         }
         
-        response = self.api_client.send_for_analysis(
-            packet_data,
-            json.dumps(context)
-        )
+        response = self.api_client.send_for_analysis(packet_data, context)
         
         if response and response.get('confidence', 0) > self.config['api']['threshold']:
             for action in response.get('actions', []):
-                self.responder.execute_response(
-                    action['type'],
-                    action['target']
-                )
+                self.responder.execute_response(action['type'], action['target'])
                 
     def _capture_traffic(self) -> str:
         """Captura tráfego para análise"""
