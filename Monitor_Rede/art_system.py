@@ -45,7 +45,7 @@ from scapy.packet import Packet
 DEFAULT_CONFIG = {
     'network': {
         'interface': 'enp8s0',
-        'whitelist': ['192.168.3.100'],
+        'whitelist': ['192.168.3.10'],
         'max_pps': 5000,        # Packets por segundo
         'max_syn_ratio': 0.8,   # % de pacotes SYN
         'burst_window': 5,      # Janela de detecção em segundos
@@ -62,23 +62,23 @@ DEFAULT_CONFIG = {
     }
 }
 
-# Novo contexto detalhado para análise enviado à IA
+# Novo CONTEXT_MESSAGE atualizado para solicitar dados específicos de decisão
 CONTEXT_MESSAGE_ART = (
     "Objetivo: Fornecer uma análise técnica detalhada dos dados de tráfego de rede coletados pelo ART-System, "
-    "identificando padrões anômalos como picos de pacotes, ataques SYN flood e port scanning, correlacionando-os com "
-    "a baseline estabelecida do tráfego normal. Os dados foram capturados em tempo real e incluem contadores por protocolo, "
-    "histórico de pacotes por segundo (PPS) e estatísticas detalhadas por IP.\n\n"
-    "Instruções:\n"
-    "1. Analise os dados apresentados, considerando as métricas 'current_counts', 'pps_history' e 'ip_stats'.\n"
-    "2. Compare os valores atuais com a baseline para identificar desvios significativos que possam indicar ataques em andamento.\n"
-    "3. Classifique as anomalias detectadas (por exemplo, considere SYN flood se a proporção de pacotes SYN ultrapassar o limite configurado, ou port scanning se um IP acessar muitas portas em curto período).\n"
-    "4. Forneça recomendações técnicas específicas para mitigar os riscos, como bloquear IPs suspeitos ou limitar a taxa de conexões via iptables.\n\n"
+    "identificando padrões anômalos (picos de pacotes, ataques SYN flood e port scanning) e correlacionando-os com a baseline do tráfego normal. "
+    "Os dados incluem contadores por protocolo, histórico de pacotes por segundo (PPS) e estatísticas detalhadas por IP.\n\n"
+    "Instruções para a análise:\n"
+    "1. Analise os dados enviados, considerando 'current_counts', 'pps_history' e 'ip_stats'.\n"
+    "2. Compare os valores atuais com a baseline e identifique desvios significativos.\n"
+    "3. Classifique as anomalias encontradas com base em critérios predefinidos e determine um 'risk_score'.\n"
+    "4. Retorne os seguintes campos na resposta: 'confidence', 'decision' (ex.: 'block', 'throttle', 'no_action'), "
+    "'analysis_summary', 'recommended_actions' (lista de ações recomendadas, cada uma com 'type' e 'target') e 'risk_score'.\n"
+    "5. A análise e as recomendações devem ser apresentadas em Português do Brasil (PT-BR).\n\n"
     "Dados adicionais fornecidos:\n"
-    "- 'baseline': Média de PPS e proporção de pacotes SYN em tráfego normal.\n"
-    "- 'current_counts': Contadores atuais de pacotes totais, TCP, UDP, ICMP e SYN.\n"
-    "- 'pps_history': Histórico recente de pacotes por segundo.\n"
-    "- 'ip_stats': Estatísticas detalhadas por IP, incluindo contagem, portas acessadas, flags e último acesso.\n\n"
-    "Apresente toda a análise em Português do Brasil (PT-BR)."
+    "- baseline: estatísticas do tráfego normal (avg_pps e syn_ratio).\n"
+    "- current_counts: contadores atuais para total, TCP, UDP, ICMP e SYN.\n"
+    "- pps_history: histórico recente de pacotes por segundo.\n"
+    "- ip_stats: estatísticas detalhadas por IP, com contagem, portas acessadas, flags e último acesso."
 )
 class TrafficAnalyzer:
     """Analisador de padrões de tráfego em tempo real"""
@@ -249,7 +249,8 @@ class APIClient:
         """
         Envia dados para análise via API.
         
-        O payload inclui os dados do tráfego ('packet_data') e um contexto enriquecido que contém instruções detalhadas e informações do sistema.
+        O payload inclui 'scan_data' e um 'context' enriquecido que solicita campos específicos para tomada de decisão,
+        tais como 'decision', 'analysis_summary', 'recommended_actions' e 'risk_score'.
         """
         payload = {
             'scan_data': packet_data,
@@ -316,7 +317,7 @@ class ARTSystem:
         
         packet_data = self._capture_traffic()
         
-        # Elaboração do contexto para análise, combinando dados atuais e instruções detalhadas
+        # Monta o contexto completo para a análise, incluindo a mensagem de instrução
         context = {
             'context_message': CONTEXT_MESSAGE_ART,
             'timestamp': datetime.now().isoformat(),
@@ -335,11 +336,43 @@ class ARTSystem:
             }
         }
         
-        response = self.api_client.send_for_analysis(packet_data, context)
+        analysis_result = self.api_client.send_for_analysis(packet_data, context)
         
-        if response and response.get('confidence', 0) > self.config['api']['threshold']:
-            for action in response.get('actions', []):
-                self.responder.execute_response(action['type'], action['target'])
+        if analysis_result:
+            self._process_analysis_result(analysis_result)
+    
+    def _process_analysis_result(self, result: Dict):
+        """
+        Processa o resultado da análise da IA.
+        
+        Interpreta os campos retornados ('confidence', 'decision', 'analysis_summary', 
+        'recommended_actions' e 'risk_score') e toma decisões inteligentes com base neles.
+        """
+        confidence = result.get('confidence', 0)
+        decision = result.get('decision', 'no_action')
+        analysis_summary = result.get('analysis_summary', '')
+        recommended_actions = result.get('recommended_actions', [])
+        risk_score = result.get('risk_score', 0)
+        
+        logging.info(f"Análise retornada: {analysis_summary} (Risco: {risk_score}, Confiança: {confidence})")
+        
+        # Exemplo de lógica inteligente: só executar ações se a confiança for alta
+        if confidence > self.config['api']['threshold']:
+            # Decisão pode ser 'block', 'throttle', 'alert', etc.
+            if decision == 'block':
+                logging.info("Decisão: Bloquear IPs conforme recomendado.")
+                for action in recommended_actions:
+                    self.responder.execute_response(action.get('type'), action.get('target'))
+            elif decision == 'throttle':
+                logging.info("Decisão: Limitar conexões conforme recomendado.")
+                for action in recommended_actions:
+                    self.responder.execute_response(action.get('type'), action.get('target'))
+            elif decision == 'alert':
+                logging.info("Decisão: Apenas gerar alerta sem ações automáticas.")
+            else:
+                logging.info("Decisão: Nenhuma ação automática recomendada.")
+        else:
+            logging.info("Confiança da análise abaixo do limiar; nenhuma ação será executada.")
                 
     def _capture_traffic(self) -> str:
         """Captura tráfego para análise"""
