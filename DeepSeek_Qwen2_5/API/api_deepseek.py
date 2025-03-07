@@ -29,8 +29,8 @@ from rich.console import Console
 
 # ---------------------- Configuração do Modelo ----------------------
 # Variável global para selecionar o modelo a ser utilizado.
-# O valor padrão é deepseek-r1:14b e poderá ser alterado em tempo de execução.
-SELECTED_MODEL = "deepseek-r1:14b"
+# O valor padrão é deepseek-r1:32b e poderá ser alterado em tempo de execução.
+SELECTED_MODEL = "deepseek-r1:32b"
 
 # ---------------------- Opções de melhoria ----------------------
 try:
@@ -359,18 +359,42 @@ def create_app():
         console.print(f"[-] Ollama/{SELECTED_MODEL} não disponível!", style="bold red")
     return app
 
+import sys
+from rich.console import Console
+
+console = Console()
+API_PORT = 5000
+
+def create_app():
+    # Exemplo de criação de aplicação Flask ou outro framework
+    # Substitua pelo código real de criação da sua aplicação
+    from flask import Flask
+    app = Flask(__name__)
+    return app
+
 # ---------------------- ENTRY POINT (DESENVOLVIMENTO) ----------------------
 if __name__ == "__main__":
     print("Escolha o modelo para análise:")
     print("1) deepseek-r1:14b")
-    print("2) qwen2.5:14b")
-    choice = input("Digite 1 ou 2: ").strip()
-    if choice == "2":
-        SELECTED_MODEL = "qwen2.5:14b"
-        console.print("Modelo selecionado: qwen2.5:14b", style="bold cyan")
-    else:
+    print("2) deepseek-r1:32b")
+    print("3) qwen2.5:14b")
+    print("4) qwen2.5:32b")
+    print("5) qwq:latest")
+    
+    choice = input("Digite 1, 2, 3, 4 ou 5: ").strip()
+    
+    if choice == "1":
         SELECTED_MODEL = "deepseek-r1:14b"
-        console.print("Modelo selecionado: deepseek-r1:14b", style="bold cyan")
+    elif choice == "2":
+        SELECTED_MODEL = "deepseek-r1:32b"
+    elif choice == "3":
+        SELECTED_MODEL = "qwen2.5:14b"
+    elif choice == "4":
+        SELECTED_MODEL = "qwen2.5:32b"
+    else:
+        SELECTED_MODEL = "qwq:latest"
+    
+    console.print(f"Modelo selecionado: {SELECTED_MODEL}", style="bold cyan")
 
     local_app = create_app()
     try:
