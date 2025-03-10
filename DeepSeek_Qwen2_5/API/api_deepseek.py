@@ -359,41 +359,30 @@ def create_app():
         console.print(f"[-] Ollama/{SELECTED_MODEL} não disponível!", style="bold red")
     return app
 
-import sys
-from rich.console import Console
-
-console = Console()
-API_PORT = 5000
-
-def create_app():
-    # Exemplo de criação de aplicação Flask ou outro framework
-    # Substitua pelo código real de criação da sua aplicação
-    from flask import Flask
-    app = Flask(__name__)
-    return app
-
 # ---------------------- ENTRY POINT (DESENVOLVIMENTO) ----------------------
 if __name__ == "__main__":
-    print("Escolha o modelo para análise:")
-    print("1) deepseek-r1:14b")
-    print("2) deepseek-r1:32b")
+    print("Escolha o modelo para análise (por fabricante):")
+    print("1) qwq:latest")
+    print("2) qwen2.5:32b")
     print("3) qwen2.5:14b")
-    print("4) qwen2.5:32b")
-    print("5) qwq:latest")
-    
-    choice = input("Digite 1, 2, 3, 4 ou 5: ").strip()
-    
+    print("4) deepseek-r1:32b")
+    print("5) deepseek-r1:14b")
+    choice = input("Digite uma opção (1 a 5): ").strip()
+
     if choice == "1":
-        SELECTED_MODEL = "deepseek-r1:14b"
+        SELECTED_MODEL = "qwq:latest"
     elif choice == "2":
-        SELECTED_MODEL = "deepseek-r1:32b"
+        SELECTED_MODEL = "qwen2.5:32b"
     elif choice == "3":
         SELECTED_MODEL = "qwen2.5:14b"
     elif choice == "4":
-        SELECTED_MODEL = "qwen2.5:32b"
+        SELECTED_MODEL = "deepseek-r1:32b"
+    elif choice == "5":
+        SELECTED_MODEL = "deepseek-r1:14b"
     else:
-        SELECTED_MODEL = "qwq:latest"
-    
+        SELECTED_MODEL = "deepseek-r1:32b"
+        console.print("Opção inválida, usando deepseek-r1:32b como padrão", style="bold red")
+
     console.print(f"Modelo selecionado: {SELECTED_MODEL}", style="bold cyan")
 
     local_app = create_app()
