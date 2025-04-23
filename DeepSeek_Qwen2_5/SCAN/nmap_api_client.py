@@ -185,13 +185,93 @@ def run_nmap_scan(target):
     log_message(f"Iniciando scans Nmap para o alvo: {normalized_target}")
     results = {}
     commands = [
-        ("Intensive_Scan", ["nmap", "-T4", "-A", "-v", "--script", "vuln,exploit", normalized_target]),
-        ("Comprehensive_Scan", ["nmap", "-sS", "-sU", "-T4", "-A", "-v", "-PE", "-PP", "-PA3389", "-PU40125", "-PY", "-g", "53", "--script", "default or (discovery and safe)", normalized_target]),
-        ("Additional_Info", ["nmap", "-sV", "--script=asn-query,whois-ip,ip-geolocation-maxmind,default", normalized_target]),
-        ("DDoS_Simulation", ["nmap", "-sU", "--script", "ntp-monlist,dns-recursion,snmp-sysdescr", "-p", "U:19,53,123,161", normalized_target]),
-        ("Firewall_Check", ["nmap", "-sA", "-Pn", "--script", "firewall-bypass", normalized_target]),
-        ("Full_Scan", ["nmap", "-p-", "-A", "-T4", normalized_target])
-    ]
+    (
+        "Intensive_Scan",
+        [
+            "nmap",
+            "-T4",
+            "-A",
+            "-v",
+            "-Pn",
+            "--reason",
+            "--traceroute",
+            "--version-intensity", "9",
+            "--script", "vuln,exploit,default,safe,vulners,vulscan/vulscan.nse",
+            "--script-args", "vulscanshowall=1,vulscanoutput=details",
+            normalized_target
+        ]
+    ),
+    (
+        "Comprehensive_Scan",
+        [
+            "nmap",
+            "-sS",
+            "-sU",
+            "-T4",
+            "-A",
+            "-v",
+            "-PE",
+            "-PP",
+            "-PA3389",
+            "-PU40125",
+            "-PY",
+            "-g", "53",
+            "--reason",
+            "--version-intensity", "9",
+            "--min-rate", "500",
+            "--max-retries", "2",
+            "--script", "default,discovery,safe,vulners,vulscan/vulscan.nse",
+            "--script-args", "vulscanshowall=1,vulscanoutput=details",
+            normalized_target
+        ]
+    ),
+    (
+        "Additional_Info",
+        [
+            "nmap",
+            "-sV",
+            "--version-intensity", "9",
+            "--script", "asn-query,whois-ip,ip-geolocation-maxmind,default",
+            normalized_target
+        ]
+    ),
+    (
+        "DDoS_Simulation",
+        [
+            "nmap",
+            "-sU",
+            "--script", "ntp-monlist,dns-recursion,snmp-sysdescr",
+            "-p", "U:19,53,123,161",
+            normalized_target
+        ]
+    ),
+    (
+        "Firewall_Check",
+        [
+            "nmap",
+            "-sA",
+            "-Pn",
+            "--script", "firewall-bypass",
+            normalized_target
+        ]
+    ),
+    (
+        "Full_Scan",
+        [
+            "nmap",
+            "-p-",
+            "-A",
+            "-T4",
+            "--reason",
+            "--version-intensity", "9",
+            "--min-rate", "500",
+            "--max-retries", "2",
+            "--script", "default,vulners,vulscan/vulscan.nse",
+            "--script-args", "vulscanshowall=1,vulscanoutput=details",
+            normalized_target
+        ]
+    )
+]
     
     for scan_type, cmd in commands:
         log_message(f"Executando {scan_type.replace('_', ' ').lower()}...")
