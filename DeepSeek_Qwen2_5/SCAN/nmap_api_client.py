@@ -20,6 +20,16 @@ Requisitos:
     - Bibliotecas: requests (pip install requests) e rich (pip install rich).
     - Biblioteca para banco de dados SQLite (nativa no Python) ou outro DB à sua escolha.
 
+    1. Instalar o vulscan:
+        cd /usr/share/nmap/scripts/
+        git clone https://github.com/scipag/vulscan.git
+        nmap --script-updatedb
+
+    2. Instalar o vulners:
+        cd /usr/share/nmap/scripts/
+        git clone https://github.com/vulnersCom/nmap-vulners.git
+        nmap --script-updatedb
+
 Autor: Thalles Canela
 Data: 2025-02-02 (Atualizado: 2025-02-08)
 """
