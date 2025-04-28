@@ -269,6 +269,30 @@ def run_nmap_scan(target):
         ]
     ),
     (
+        "Comprehensive_Scan",
+        [
+            "nmap",
+            "-sS",
+            "-sU",
+            "-T4",
+            "-A",
+            "-v",
+            "-PE",
+            "-PP",
+            "-PA3389",
+            "-PU40125",
+            "-PY",
+            "-g", "53",
+            "--reason",
+            "--version-intensity", "9",
+            "--min-rate", "500",
+            "--max-retries", "2",
+            "--script", "default,discovery,safe,vulners,vulscan/vulscan.nse",
+            "--script-args", "vulscanshowall=1,vulscanoutput=details",
+            normalized_target
+        ]
+    ),
+    (
         "Additional_Info",
         [
             "nmap",
