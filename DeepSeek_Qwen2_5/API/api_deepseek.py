@@ -3,7 +3,7 @@
 API Server para integração com DeepSeek via Ollama - Versão Melhorada e Reestruturada
 
 Modo de execução local (para desenvolvimento):
-    python api_deepseek.py
+    python3 api_deepseek.py
 
 Modo de execução em produção (exemplo):
     gunicorn --bind 0.0.0.0:5000 --workers 4 "api_deepseek:create_app()"
@@ -74,6 +74,30 @@ MAX_WORKERS = 4
 executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
 console = Console()
+
+# ---------------------- NOVA FUNÇÃO DE LOG ----------------------
+def log_analysis(client_ip, status, processing_time, data_size, result):
+    """
+    Registra a análise completa em um arquivo .log estruturado.
+    Formato: JSON Lines (um objeto JSON por linha)
+    """
+    log_entry = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "client_ip": client_ip,
+        "status": status,
+        "processing_time": processing_time,
+        "data_size": data_size,
+        "analysis_result": result
+    }
+    log_line = json.dumps(log_entry, ensure_ascii=False)
+    log_file_path = os.path.join(LOG_FOLDER, "analysis.log")
+    
+    try:
+        with open(log_file_path, "a", encoding="utf-8") as log_file:
+            log_file.write(log_line + "\n")
+    except Exception as e:
+        logging.error(f"Erro ao escrever no log de análise: {str(e)}")
+        console.print(f"[-] Falha no log da análise: {str(e)}", style="bold red")
 
 # ---------------------- BANCO DE DADOS ----------------------
 def init_db():
@@ -277,6 +301,9 @@ def analyze():
         result = process_analysis(scan_data, context)
         processing_time = (datetime.now() - start_time).total_seconds()
         status = "success"
+
+        # Novo log da análise completa
+        log_analysis(client_ip, status, processing_time, data_size, result)
 
         if not callback_url:
             log_request(client_ip, status, processing_time, data_size)

