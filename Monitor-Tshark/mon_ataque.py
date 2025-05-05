@@ -14,7 +14,6 @@ from rich import box
 
 console = Console()
 
-
 def parse_args():
     parser = argparse.ArgumentParser(description="Network Monitor with Scapy & Rich")
     parser.add_argument(
@@ -41,7 +40,6 @@ def parse_args():
     )
     return parser.parse_args()
 
-
 def setup_logger(log_dir):
     log_path = Path(log_dir)
     log_path.mkdir(exist_ok=True)
@@ -63,7 +61,6 @@ def setup_logger(log_dir):
     logger.addHandler(handler)
     return logger
 
-
 def detect_scan_type(flags):
     f = int(flags)
     scans = []
@@ -74,7 +71,6 @@ def detect_scan_type(flags):
     if (f & 0x01) and (f & 0x08) and (f & 0x20):
         scans.append("XMAS")
     return scans
-
 
 def create_table():
     tbl = Table(title="📡 Network Monitor – Potenciais Ameaças", box=box.SIMPLE_HEAD)
@@ -87,7 +83,6 @@ def create_table():
     tbl.add_column("Alert", style="bold red")
     return tbl
 
-
 def create_summary_table(victim_counter, top_n):
     tbl = Table(title=f"🏆 Top {top_n} IPs Vítimas", box=box.SIMPLE_HEAD)
     tbl.add_column("IP Vítima", style="red")
@@ -95,7 +90,6 @@ def create_summary_table(victim_counter, top_n):
     for ip, count in victim_counter.most_common(top_n):
         tbl.add_row(ip, str(count))
     return tbl
-
 
 def main():
     args = parse_args()

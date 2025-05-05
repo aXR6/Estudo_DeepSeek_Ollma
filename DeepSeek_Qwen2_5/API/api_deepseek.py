@@ -21,6 +21,8 @@ import subprocess
 import re
 import zlib
 import requests
+from pymongo import MongoClient
+
 
 from datetime import datetime
 from flask import Flask, request, jsonify
@@ -31,6 +33,12 @@ from rich.console import Console
 # Variável global para selecionar o modelo a ser utilizado.
 # O valor padrão é deepseek-r1:32b e poderá ser alterado em tempo de execução.
 SELECTED_MODEL = "deepseek-r1:32b"
+
+# 2) Imports e configurações globais (adicionar no topo do arquivo)
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://app_user:senhaApp123@192.168.3.17:27017/ollama_chat?authSource=ollama_chat")
+_mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+_mongo_db = _mongo_client["ollama_chat"]
+_scan_collection = _mongo_db["Scan_Python"]
 
 # ---------------------- Opções de melhoria ----------------------
 try:
@@ -144,6 +152,30 @@ def log_request(client_ip, status, processing_time, data_size):
             conn.commit()
     except Exception:
         logging.exception("Erro registrando requisição")
+
+# 3) Nova função para salvar a análise no MongoDB
+def save_scan_to_mongo(scan_data: str, analysis_result: str, client_ip: str, processing_time: float):
+    """
+    Persiste o resultado da análise no MongoDB.
+    Document schema em ‘ollama_chat.Scan_Python’:
+      - timestamp        (UTC ISO)
+      - client_ip        (string)
+      - scan_data        (string)
+      - analysis_result  (string)
+      - processing_time  (float, em segundos)
+    """
+    try:
+        doc = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "client_ip": client_ip,
+            "scan_data": scan_data,
+            "analysis_result": analysis_result,
+            "processing_time": processing_time,
+        }
+        _scan_collection.insert_one(doc)
+    except Exception as e:
+        logging.error(f"Erro ao salvar no MongoDB: {e}")
+        console.print(f"[-] Falha ao gravar Scan_Python: {e}", style="bold red")
 
 # ---------------------- FUNÇÕES DE ANÁLISE/OLLAMA ----------------------
 def test_ollama():
@@ -304,6 +336,7 @@ def analyze():
 
         # Novo log da análise completa
         log_analysis(client_ip, status, processing_time, data_size, result)
+        save_scan_to_mongo(scan_data, result, client_ip, processing_time)
 
         if not callback_url:
             log_request(client_ip, status, processing_time, data_size)

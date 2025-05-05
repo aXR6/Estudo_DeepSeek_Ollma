@@ -3,7 +3,7 @@
 # run_monitor.sh — Cria venv, instala dependências, habilita raw sockets e roda o monitor
 #
 # Uso: ./run_monitor.sh [INTERFACE] [LOG_DIR] [MAX_ROWS] [TOP_VICTIMS]
-# Ex:  ./run_monitor.sh enp6s18 logs 60 10
+# Ex:  ./run_monitor.sh wlp0s20f3 logs 60 10
 #
 # Parâmetros:
 #
